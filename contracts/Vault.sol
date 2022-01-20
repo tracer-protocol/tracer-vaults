@@ -8,7 +8,7 @@ import {onlyAdmin} from "openzeppelin-solidity/test/helpers/onlyAdmin";
 
 import {IERC4626} from "../../interfaces/IERC4626.sol";
 
-abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
+abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626{
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
