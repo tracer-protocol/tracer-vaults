@@ -110,6 +110,12 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
 
         UNDERLYING.safeTransfer(to, shareAmount);
     }
+
+
+   /*///////////////////////////////////////////////////////////////
+                    Tracer Custom Mutable Functions
+    //////////////////////////////////////////////////////////////*/
+    
     //sets an approved strategy
    function setApprovedStrategy(address strategy) internal onlyAdmin returns (bool) {
      Strategies[strategy]=true;
@@ -131,7 +137,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
 
     //Function to withdraw from Strategy
      function withdrawFromStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
-         uint preBalance = balanceOf(address(this))
+         uint preBalance = balanceOf(address(this));
          withdraw(strategy, amount);
         if (preBalance + amount = balanceOf(address(this))) {
             return balanceOf(address(this));
@@ -153,6 +159,26 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
            }
    }
 
+
+    /*///////////////////////////////////////////////////////////////
+                    Tracer Custom View Functions
+    //////////////////////////////////////////////////////////////*/
+    // The Vault contracts buffer balance should be above 0.05 of total
+    function buffer() internal view returns (uint256) {
+        return (balanceOf(address(this))+ balanceOf(address(strategyAddr)))* 0.05;
+    }
+    // Checks strategy is in mapping
+    function isStrategy() internal view returns (uint256) {
+      //some logic to query max strategies for contract and their balance
+    }
+    // Checks when next rollover
+    function getRollover() external view returns (uint256) {
+      // some logic to check if strategy has rolled over
+    }
+    //Checks the strategys balance
+    function getValue(address strategy) external view returns (uint256) {
+      // some logic to call strategy value
+    }
     /*///////////////////////////////////////////////////////////////
                             View Functions
     //////////////////////////////////////////////////////////////*/
@@ -161,17 +187,6 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
         Get the exchange rate between shares and underlying tokens.
     */
     
-    function buffer() internal view returns (uint256) {
-        return (balanceOf(address(this))+ balanceOf(address(strategyAddr)))* 0.05;
-    }
-
-    function getStrategyCount() internal view returns (uint256) {
-      //some logic to query max strategies for contract and their balance
-    }
-    function getRollover() external view returns (uint256) {
-      // some logic to check if strategy has rolled over
-    }
-
     function exchangeRate() internal view returns (uint256) {
         uint256 cTokenSupply = totalSupply;
 
