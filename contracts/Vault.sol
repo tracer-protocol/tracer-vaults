@@ -17,6 +17,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
 
     ERC20 immutable UNDERLYING;
     uint256 immutable BASE_UNIT;
+    address immutable ACTIONS;
 
     constructor(ERC20 underlying, uint256 baseUnit) {
         UNDERLYING = underlying;
@@ -110,15 +111,24 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
 
 
 /// Function to deposit into strategy contract
- function depositToStrategy(address to, uint256 vaultUnderlying) public returns (uint256 shares) {
+ function depositToStrategy(address to, uint256 vaultUnderlyingAmount, address strategyAddr) public returns (uint256 shares) {
         //Todo: Declare shares -> Transfer to Strategy
+        shares = vaultUnderlying.fdiv(exchangeRate(), BASE_UNIT);
+        _mint(to, shares);
+         UNDERLYING.safeTransferFrom(msg.sender, address(this), vaultUnderlyingAmount);
         // Rebalance: check buffer is >5%, else, rebalance
-        
+        uint buffer = (balanceOf(address(this))+ balanceOf(address(strategyAddr))* 0.05);
+        if (buffer < balanceOf(address(this))){
+            // Rebalance
+            // uint256 shares = (balanceOf(address(this)) - buffer) / exchangeRate();
+            // _mint(address(this), shares);
+            // _burn(address(this), shares);
+        }
         // shares = vaultUnderlying.fdiv(exchangeRate(), BASE_UNIT);
 
         // _mint(to, shares);
 
-        // UNDERLYING.safeTransferFrom(msg.sender, address(this), vaultUnderlying);
+       
     }
 
     //Function to withdraw from Strategy
@@ -135,12 +145,25 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
         // UNDERLYING.safeTransfer(to, underlyingAmount);
     }
    
-   function setApprovedStrategy(address to) internal admin returns (bool) {
+   function setApprovedStrategy(address[] memory _actions) internal onlyAdmin returns (bool) {
      //some logic to set strategy as approved strategy, if not implemented on the strategy contract
+     address = _actions;
+     for (uint256 i = 0; i < _actions.length; i++) {
+      // check all items before actions[i], does not equal to action[i]
+      for (uint256 j = 0; j < i; j++) {
+        require(_actions[i] != _actions[j], "duplicated action");
+      }
+      actions.push(_actions[i]);
+    }
    }
-   function rebalance () external returns (bool) {
+// need helpm for logic to find if 5% of total left in vault
+   function rebalance() external returns (bool) {
      //Some logic to implement rebalance from strategy to buffer to keep 5%
      //check buffer > 5%
+     uint buffer = (balanceOf(address(this))+ balanceOf(address(strategyAddr))* 0.05);
+     UNDERLYING.balanceOf(address(this)) > buffer;) {
+      // if true, then rebalance
+      // if false, then do nothing
    }
 
     /*///////////////////////////////////////////////////////////////
@@ -154,7 +177,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
     function getStrategyCount() internal view returns (uint256) {
       //some logic to query max strategies for contract and their balance
     }
-    function getRollover() external view returns (bool) {
+    function getRollover() external view returns (uint256) {
       // some logic to check if strategy has rolled over
     }
 
