@@ -17,7 +17,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
 
     ERC20 immutable UNDERLYING;
     uint256 immutable BASE_UNIT;
-    address immutable ACTIONS;
+    address immutable ACTIONS_CONTRACT_ARRAY;
 
     constructor(ERC20 underlying, uint256 baseUnit) {
         UNDERLYING = underlying;
@@ -111,7 +111,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
 
 
 /// Function to deposit into strategy contract
- function depositToStrategy(address to, uint256 vaultUnderlyingAmount, address strategyAddr) public returns (uint256 shares) {
+ function depositToStrategy(address to, uint256 vaultUnderlyingAmount, address strategyAddr) internal returns (uint256 shares) {
         //Todo: Declare shares -> Transfer to Strategy
         shares = vaultUnderlying.fdiv(exchangeRate(), BASE_UNIT);
         _mint(to, shares);
@@ -136,7 +136,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
         address from,
         address to,
         uint256 underlyingAmount
-    ) public returns (uint256 shares) {
+    ) internal returns (uint256 shares) {
       //todo: Burn shares for underlying - > transfer underlying to vault
         // shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
 
@@ -153,7 +153,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
       for (uint256 j = 0; j < i; j++) {
         require(_actions[i] != _actions[j], "duplicated action");
       }
-      actions.push(_actions[i]);
+      ACTIONS_CONTRACT_ARRAY.push(_actions[i]);
     }
    }
 // need helpm for logic to find if 5% of total left in vault
