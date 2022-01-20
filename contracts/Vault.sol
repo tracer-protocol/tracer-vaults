@@ -4,6 +4,7 @@ pragma solidity 0.8.10;
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {onlyAdmin} from "openzeppelin-solidity/test/helpers/onlyAdmin";
 
 import {IERC4626} from "../../interfaces/IERC4626.sol";
 
@@ -17,7 +18,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
 
     ERC20 immutable UNDERLYING;
     uint256 immutable BASE_UNIT;
-    address immutable ACTIONS_CONTRACT_ARRAY;
+    address immutable STRATEGY_CONTRACT_ARRAY;
 
     constructor(ERC20 underlying, uint256 baseUnit) {
         UNDERLYING = underlying;
@@ -145,15 +146,15 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
         // UNDERLYING.safeTransfer(to, underlyingAmount);
     }
    
-   function setApprovedStrategy(address[] memory _actions) internal onlyAdmin returns (bool) {
+   function setApprovedStrategy(address[] memory _strategy) internal onlyAdmin returns (bool) {
      //some logic to set strategy as approved strategy, if not implemented on the strategy contract
-     address = _actions;
-     for (uint256 i = 0; i < _actions.length; i++) {
+     address = _strategy;
+     for (uint256 i = 0; i < _strategy; i++) {
       // check all items before actions[i], does not equal to action[i]
       for (uint256 j = 0; j < i; j++) {
-        require(_actions[i] != _actions[j], "duplicated action");
+        require(_strategy[i] != _strategy[j], "duplicated strat");
       }
-      ACTIONS_CONTRACT_ARRAY.push(_actions[i]);
+      STRATEGY_CONTRACT_ARRAY.push(_strategy[i]);
     }
    }
 // need help for logic to find if 5% of total left in vault
