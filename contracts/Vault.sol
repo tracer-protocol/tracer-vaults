@@ -156,14 +156,18 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
       ACTIONS_CONTRACT_ARRAY.push(_actions[i]);
     }
    }
-// need helpm for logic to find if 5% of total left in vault
+// need help for logic to find if 5% of total left in vault
    function rebalance() external returns (bool) {
      //Some logic to implement rebalance from strategy to buffer to keep 5%
      //check buffer > 5%
      uint buffer = (balanceOf(address(this))+ balanceOf(address(strategyAddr))* 0.05);
-     UNDERLYING.balanceOf(address(this)) > buffer;) {
-      // if true, then rebalance
-      // if false, then do nothing
+      if (buffer > balanceOf(address(this))){
+         // Rebalance
+        withdraw(address(strategy), (buffer - balanceOf(address(this))));
+           }, 
+           UNDERLYING.balanceOf(address(this)) > buffer;) {
+          deposit(address(strategy), (balanceOf(address(this)) - buffer));
+  
    }
 
     /*///////////////////////////////////////////////////////////////
