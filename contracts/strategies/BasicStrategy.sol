@@ -1,19 +1,20 @@
 pragma solidity ^0.8.0;
 
 import "../interfaces/IStrategy.sol";
+import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
+import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 
 contract BasicStrategy is IStrategy {
 
     // target perpetual pool and cached params
-    address public POOL;
+    address public constant POOL;
     address public POOL_SHORT_TOKEN;
 
     // target hedge asset and cached params
-    address public HEDGE_ASSET;
-    address public HEDGE_SWAP; //uniwap pool to swap HEDGE_ASSET for VAULT_ASSET
+    address public constant HEDGE_ASSET; //eg ETH in a ETH/USD+DAI pool
 
     // vault collateral asset
-    address public VAULT_ASSET;
+    address public constant VAULT_ASSET; //eg DAI in a ETH/USD+DAI pool
 
     // strategy current state
     // number of pending commits for minting short pool tokens
@@ -21,9 +22,18 @@ contract BasicStrategy is IStrategy {
     // number of pending commits for burning short pool tokens
     uint256 public pendingBurns;
 
+    // uniswap params
+    ISwapRouter public immutable swapRouter;
+    uint24 public constant poolFee = 3000;
 
-    constructor() {
 
+    constructor(address _swapRouter) {
+        swapRouter = ISwapRouter(_swapRouter);
+
+        // approve maximum amount to avoid approvals later on for swaps
+        // this will save a large amount of gas
+        // IERC20(HEDGE_ASSET).approve(address(swapRouter), MAX_UINT);
+        // IERC20(VAULT_ASSET).approve(address(swapRouter), MAX_UINT);
     }
 
     function value() external view returns(uint256) {
@@ -74,5 +84,57 @@ contract BasicStrategy is IStrategy {
         // 2. Sell as much HEDGE_ASSET as possible with minimal slippage and within
         // our risk params.
         // 3. unwind enough positions to cover this debt in the next rebalance.
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                            Helper Functions
+    //////////////////////////////////////////////////////////////*/
+    
+    /**
+    * @notice purchases hedge assets using the provided amountIn 
+    * of VAULT_ASSET
+    * @param
+    */
+    function purchaseHedge(uint256 amountIn) internal {
+        ISwapRouter.ExactInputSingleParams memory params =
+        ISwapRouter.ExactInputSingleParams({
+            tokenIn: VAULT_ASSET,
+            tokenOut: HEDGE_ASSET,
+            fee: poolFee,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: amountIn,
+            // todo make the following safe for production
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: 0
+        });
+
+        // The call to `exactInputSingle` executes the swap.
+        amountOut = swapRouter.exactInputSingle(params);
+
+        // todo validate amountOut is reasonable
+    }
+
+    /**
+    * @notice sells hedge assets using the provided amountIn of hedge
+    */
+    function sellHedge(uint256 amountIn) internal {
+        ISwapRouter.ExactInputSingleParams memory params =
+        ISwapRouter.ExactInputSingleParams({
+            tokenIn: HEDGE_ASSET,
+            tokenOut: VAULT_ASSET,
+            fee: poolFee,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: amountIn,
+            // todo make the following safe for production
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: 0
+        });
+
+        // The call to `exactInputSingle` executes the swap.
+        amountOut = swapRouter.exactInputSingle(params);
+
+        // todo validate amountOut is reasonable
     }
 }
