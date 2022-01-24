@@ -21,10 +21,10 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
 
     mapping (address => bool) public Strategies;
 
-    constructor(ERC20 underlying, uint256 baseUnit) {
-        UNDERLYING = underlying;
-        BASE_UNIT = baseUnit;
-    }
+      constructor(ERC20 underlying, uint256 baseUnit) {
+         UNDERLYING = underlying;
+         BASE_UNIT = baseUnit;
+        }
 
     /*///////////////////////////////////////////////////////////////
                             Mutable Functions
@@ -139,6 +139,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
      function withdrawFromStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
          uint preBalance = balanceOf(address(this));
          withdraw(strategy, amount);
+         // Checks if balance prior to withdraw is equal to balance after withdraw + amount
         if (preBalance + amount = balanceOf(address(this))) {
             return balanceOf(address(this));
         } else {
@@ -152,7 +153,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
          // Rebalance
         withdraw(address(strategy), (buffer - balanceOf(address(this))));
            } else {
-             if (balanceOf(address(this)) > buffer) {
+             if (balanceOf(address(this)) < buffer) {
                // Rebalance
                withdraw(address(strategy), (balanceOf(address(this)) - buffer));
              }
