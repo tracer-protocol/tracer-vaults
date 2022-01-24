@@ -8,7 +8,7 @@ import {onlyAdmin} from "openzeppelin-solidity/test/helpers/onlyAdmin";
 
 import {IERC4626} from "../../interfaces/IERC4626.sol";
 
-abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626{
+contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18) {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -18,6 +18,7 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
 
     ERC20 immutable UNDERLYING;
     uint256 immutable BASE_UNIT;
+	
 
     mapping (address => bool) public Strategies;
 
@@ -52,10 +53,26 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
     */
     function withdraw(address to, uint256 underlyingAmount) public override returns (uint256 shares) {
         shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
-
+		//Check if requested withdraw amount is above vaults underlying balance
+		if (underlyingAmount > balanceOfUnderlying(address(this))) {
+		uint diff = underlyingAmount - balanceOfUnderlying(address(this));
+		//withdraw differece from strategy to fund withdrawal
+		strategy.withdraw(diff);
         _burn(msg.sender, shares);
+		UNDERLYING.safeTransfer(to, underlyingAmount);
+		bufferUpKeep()
+		} else {
+			_burn(msg.sender, shares);
+			UNDERLYING.safeTransfer(to, underlyingAmount);
+		}
 
-        UNDERLYING.safeTransfer(to, underlyingAmount);
+        // UNDERLYING.safeTransfer(to, underlyingAmount);
+		// //custom logic to pull from strategy if withdrawal caused vault to go below safeVaultBalance
+		// if (balanceOf(address(this) < safeVaultBalance())) {
+		// 	bufferUpKeep()
+		// } else {
+
+		// }
     }
 
     /**
@@ -117,26 +134,36 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
     //////////////////////////////////////////////////////////////*/
     
     //sets an approved strategy
-   function setApprovedStrategy(address strategy) internal onlyAdmin returns (bool) {
-     Strategies[strategy]=true;
-   }
+	function setApprovedStrategy(address strategy) internal onlyAdmin returns (bool) {
+	Strategies[strategy]=true;
+	return true;
+	}
     //removes an approved strategy
     function removeApprovedStrategy(address strategy) internal onlyAdmin returns (bool) {
       Strategies[strategy]=false;
     }
-/// Function to deposit into strategy contract
- function depositStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
-        if (Strategies[strategy] = true) {
+	/// Old Function to deposit into strategy contract
+	// function depositStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
+    //     if (Strategies[strategy] = true) {
+    //      strategy.deposit(amount);
+    //      return balance;
+    //      strategy.rebalance()
+    //     } else {
+    //       revert();
+	// 	}
+	// } 
+	function depositStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
+		if (Strategies[strategy] = true) {
          strategy.deposit(amount);
-         return balance;
          strategy.rebalance()
+			return balance;
         } else {
-         throw;
-        }
- } 
+          revert();
+		}
+	} 
 
     //Function to withdraw from Strategy
-     function withdrawFromStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
+    function withdrawFromStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
          uint preBalance = balanceOf(address(this));
          withdraw(strategy, amount);
          // Checks if balance prior to withdraw is equal to balance after withdraw + amount
@@ -147,9 +174,10 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
         }
     }
       //Function to rebalance Strategy to approach buffer
-   function rebalanceStrat(address strategy) external returns (bool) {
-     //calls rebalance on strategy
-     strategy.rebalance();
+   function bufferUpKeep() external returns (bool) {
+     //calls strategy for buffer funds
+	 //TODO: how to bulk rebalance strategies, is this possible?
+     Strategies.rebalance()
    }
 
 
@@ -160,6 +188,10 @@ abstract contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC
     function buffer() internal view returns (uint256) {
         return (balanceOf(address(this))+ balanceOf(address(strategyAddr)))* 0.05;
     }
+	function safeVaultBalance() view returns (uint256) {
+		return (0.025 * (balanceOf(address.(this)) + balanceOf(address(strategy))));
+	}
+	
     // Checks strategy is in mapping
     function isStrategy() internal view returns (uint256) {
       //some logic to query max strategies for contract and their balance
