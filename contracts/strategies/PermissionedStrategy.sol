@@ -6,29 +6,38 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract PermissionedStrategy is IStrategy, AccessControl {
 
     // target perpetual pool and cached params
-    address public POOL;
-    IERC20 public POOL_SHORT_TOKEN;
-    address public VAULT;
+    address public immutable POOL;
+    IERC20 public immutable POOL_SHORT_TOKEN;
+    address public immutable VAULT;
 
     // vault collateral asset
-    IERC20 public VAULT_ASSET; //eg DAI in a ETH/USD+DAI pool
+    IERC20 public immutable VAULT_ASSET; //eg DAI in a ETH/USD+DAI pool
 
     // strategy current state
-    // total outstanding debt owed by all addrsses
-    uint256 public totalDebt;
-    // amount of outstanding debt per address
-    mapping(address => uint256) public debts;
+    // total outstanding debt owed by all addrsses per asset type
+    mapping(address => uint256) public totalDebt;
+    // amount of outstanding debt per address per address
+    // address => asset => total debt
+    mapping(address => mapping(address => uint256)) public debts;
 
     // access control
     bytes32 public constant WHITELISTER = keccak256("WHITELISTER_ROLE");
     mapping(address => bool) public whitelist;
+    mapping(address => bool) public assetWhitelist;
 
     // events
     event FUNDS_REQUEST(uint256 amount, address collateral);
 
-    constructor(address poolShortToken, address vaultAsset, address _vault) {
+    constructor(address pool, address poolShortToken, address vaultAsset, address _vault) {
+        // whitelist default assets
+        setAssetWhitelist(poolShortToken, true);
+        setAssetWhitelist(vaultAsset, true);
+
         // make contract deployer the default admin
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        
+        // cache state
+        POOL = pool;
         POOL_SHORT_TOKEN = IERC20(poolShortToken);
         VAULT_ASSET = IERC20(vaultAsset);
         // todo validate above poolShortToken and vaultAsset
@@ -36,9 +45,9 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     }
 
     function value() external view returns(uint256) {
-        // todo value our assets
-        // collateral on hand + outstanding debt from external contracts
-        return VAULT_ASSET.balanceOf(address(this)) + totalDebt;
+        // collateral on hand + outstanding debt from external contracts denoted in the vault asset
+        // todo -> we may need to account for short tokens that are currently with any bot
+        return VAULT_ASSET.balanceOf(address(this)) + totalDebt[address(VAULT_ASSET)];
     }
 
     /**
@@ -81,12 +90,13 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     * @notice Allows a whitelisted address to pull colalteral from the contract
     * @dev Updates debt accounting
     * @param amount the amount being requested
+    * @param asset the asset being pulled
     */
-    function pullCollateral(uint256 amount) onlyWhitelisted() public {
-        require(amount <= VAULT_ASSET.balanceOf(address(this)), "INSUFFICIENT FUNDS");
+    function pullAsset(uint256 amount, address asset) onlyWhitelisted(asset) public {
+        require(amount <= IERC20(asset).balanceOf(address(this)), "INSUFFICIENT FUNDS");
         // update accounting
-        debts[msg.sender] += amount;
-        totalDebt += amount;
+        debts[msg.sender][asset] += amount;
+        totalDebt[asset] += amount;
         VAULT_ASSET.transfer(msg.sender, amount);
     }
 
@@ -95,18 +105,19 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     * @dev the whitelisted address must have approved this contract as a spender of
     * VAULT_COLLATERAL before this function can be used
     * @param amount the amount of debt being repaid
+    * @param asset the asset being returned
     */
-    function returnCollateral(uint256 amount) onlyWhitelisted() public {
-        VAULT_ASSET.transferFrom(msg.sender, address(this), amount);
+    function returnCollateral(uint256 amount, address asset) onlyWhitelisted(asset) public {
+        IERC20(asset).transferFrom(msg.sender, address(this), amount);
         // update accounting
-        uint256 _senderDebt = debts[msg.sender];
-        uint256 _totalDebt = totalDebt;
+        uint256 _senderDebt = debts[msg.sender][asset];
+        uint256 _totalDebt = totalDebt[asset];
         if (amount >= _senderDebt) {
             // this user has no debt
-            debts[msg.sender] = 0;
+            debts[msg.sender][asset] = 0;
         } else if (amount >= _totalDebt) {
             // there is no more outstanding debt
-            totalDebt = 0;
+            totalDebt[asset] = 0;
         }
     }
 
@@ -124,8 +135,22 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         whitelist[whitelisted] = permission; 
     }
 
-    modifier onlyWhitelisted {
-        require(whitelist[msg.sender], "NOT WHITELISTED");
+    /**
+    * @notice Sets a certain asset addresses permissions on the whitelist.
+    * @dev setting this to true will allow that asset to be pulled and pushed from this vault
+    * @param asset the address being whitelisted
+    * @param permission whether to grant it access or not
+    */
+    function setAssetWhitelist(address asset, bool permission) public onlyRole(WHITELISTER) {
+        assetWhitelist[asset] = permission; 
+    }
+
+    /**
+    * @notice modifier that checks both the sending address and the asset
+    */
+    modifier onlyWhitelisted(address asset) {
+        require(whitelist[msg.sender], "SENDER NOT WL");
+        require(assetWhitelist[asset], "ASSET NOT WL");
         _;
     }
 }
