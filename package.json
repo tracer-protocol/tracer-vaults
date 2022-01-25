@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.4.2",
-    "@rari-capital/solmate": "^6.2.0"
+    "@rari-capital/solmate": "^6.2.0",
+    "@uniswap/v3-periphery": "^1.4.0"
   }
 }
