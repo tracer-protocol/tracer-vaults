@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity 0.8.10;
+pragma solidity ^0.8.0;
 
 import "./IERC4626.sol";
 
@@ -19,11 +19,11 @@ import "./IERC4626.sol";
 interface IERC4626Router {
     /************************** Errors **************************/
 
-    /// @notice thrown when amount of shares/underlying received is below the min set by caller
-    error MinAmountError();
+    // /// @notice thrown when amount of shares/underlying received is below the min set by caller
+    // error MinAmountError();
 
-    /// @notice thrown when fromVault's underlying is not equal to toVault's underlying
-    error UnderlyingMismatchError();
+    // /// @notice thrown when fromVault's underlying is not equal to toVault's underlying
+    // error UnderlyingMismatchError();
 
     /************************** Deposit **************************/
 

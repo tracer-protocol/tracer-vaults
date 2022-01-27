@@ -1,33 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.0;
 
-import {ERC20} from "solmate/tokens/ERC20.sol";
-import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
-import {onlyAdmin} from "openzeppelin-solidity/test/helpers/onlyAdmin";
+import "@rari-capital/solmate/src/tokens/ERC20.sol";
+import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
+import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
+import "./interfaces/IERC4626.sol";
+import "./interfaces/IStrategy.sol";
 
-import {IERC4626} from "../../interfaces/IERC4626.sol";
-
-
-contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
+contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
-
-    ERC20 immutable UNDERLYING;	
-    uint256 immutable BASE_UNIT;	
+    ERC20 immutable UNDERLYING;
+    uint256 immutable BASE_UNIT;
 
     // strategy variables
-    mapping (address => bool) public isStrategy;
+    mapping(address => bool) public isStrategy;
     address[] public strategies;
 
     // buffer variables
-    uint256 public buffer_ceil = 0.05;
-    uint256 public buffer_floor = 0.025;
+    // todo sort scaling params / use rational_const type
+    uint256 public buffer_ceil = 1;
+    uint256 public buffer_floor = 1;
 
     constructor(ERC20 underlying, uint256 baseUnit) {
         UNDERLYING = underlying;
         BASE_UNIT = baseUnit;
+
+        // todo: init default strategies
+        strategies.push(address(this));
     }
 
     /**
@@ -51,7 +52,8 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
     */
     function withdraw(address to, uint256 underlyingAmount) public override returns (uint256 shares) {
         // todo: This function needs to generalise for N strategies
-        
+        IStrategy strategy = IStrategy(strategies[0]);
+
         uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
         uint256 preUnderlying = balanceOfUnderlying(address(this));
 
@@ -79,9 +81,8 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
             _burn(msg.sender, shares);
             UNDERLYING.safeTransfer(to, underlyingAmount);
         }
-        bufferUpkeep();
+        bufferUpKeep();
     }
-    
 
     /**
       @notice Withdraw a specific amount of underlying tokens on behalf of `from`.
@@ -136,30 +137,25 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
         UNDERLYING.safeTransfer(to, shareAmount);
     }
 
-
-   /*///////////////////////////////////////////////////////////////
+    /*///////////////////////////////////////////////////////////////
                     Tracer Custom Mutable Functions
     //////////////////////////////////////////////////////////////*/
-    
+
     //sets an approved strategy
-    function setApprovedStrategy(address strategy, bool status) public onlyAdmin {
+    // todo: re add access control here
+    function setApprovedStrategy(address strategy, bool status) public {
         isStrategy[strategy] = status;
     }
-
-    function depositStrategy(address strategy, uint256 amount) internal {
-        require(isStrategy[strategy], "STRATEGY NOT APPROVED");
-        strategy.deposit(amount);
-    } 
 
     // Function to withdraw from a specific strategy
     function withdrawFromStrategy(address strategy, uint256 amount) internal {
         // todo the logic to check how much was returned from the strategy could go here
         require(isStrategy[strategy], "STRATEGY NOT APPROVED");
-        strategy.withdraw(diff);
+        IStrategy(strategy).withdraw(amount);
     }
 
     //Function to rebalance Strategy to approach buffer
-    function bufferUpKeep() external returns (bool) {
+    function bufferUpKeep() public returns (bool) {
         //calls strategy for buffer funds
         //TODO: how to bulk rebalance strategies, is this possible?
         // for (true in Strategies) {
@@ -168,24 +164,28 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
         // }
     }
 
-
-
     /*///////////////////////////////////////////////////////////////
                     Tracer Custom View Functions
     //////////////////////////////////////////////////////////////*/
     // The Vault contracts buffer balance should be above 0.05 of total
-    function buffer() internal view returns (uint256) {
-        return (balanceOf(address(this)) + balanceOf(address(strategyAddr))) * buffer_ceil;
+    function buffer() public view returns (uint256) {
+        // todo
+        //return (balanceOf(address(this)) + balanceOf(address(strategyAddr))) * buffer_ceil;
+        return 0;
     }
+
     //safe vault balance should be above 0.025 of total
-    function safeVaultBalance() view returns (uint256) {
-        return (buffer_floor * (balanceOf(address.(this)) + balanceOf(address(strategy))));
+    function safeVaultBalance() public view returns (uint256) {
+        // todo
+        return 0;
+        //return (buffer_floor * (balanceOf(address(this)) + balanceOf(address(strategy))));
     }
 
     //Checks the strategys balance
     function getValue(address strategy) external view returns (uint256) {
-      // some logic to call strategy value
+        // some logic to call strategy value
     }
+
     /*///////////////////////////////////////////////////////////////
                             View Functions
     //////////////////////////////////////////////////////////////*/
@@ -193,7 +193,7 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
     /** 
         Get the exchange rate between shares and underlying tokens.
     */
-    
+
     function exchangeRate() internal view returns (uint256) {
         uint256 cTokenSupply = totalSupply;
 
@@ -206,8 +206,8 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
       @notice The underlying token the Vault accepts.
       @return the ERC20 underlying implementation address.
     */
-    function underlying() public view virtual override returns (ERC20) {
-        return UNDERLYING;
+    function underlying() public view virtual override returns (address) {
+        return address(UNDERLYING);
     }
 
     /** 
