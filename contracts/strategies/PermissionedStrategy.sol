@@ -7,7 +7,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
 
     // target perpetual pool and cached params
     address public immutable POOL;
-    IERC20 public immutable POOL_SHORT_TOKEN;
+    IERC20 public immutable POOL_SHORT_TOKEN; //todo: is this needed?
     address public immutable VAULT;
 
     // vault collateral asset
@@ -71,16 +71,19 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     * @param amount the amount of underlying tokens request to be withdrawn.
     */
     function withdraw(uint256 amount) external {
-        // 1. Send to vault as much liquid VAULT_COLLATERAL as posssible
+        // 1. Compute amount available to be transfered. Cap at balance of the strategy
         uint256 currentBalance = VAULT_ASSET.balanceOf(address(this));
         uint256 amountToTransfer = amount >= currentBalance ? currentBalance : amount; 
-        VAULT_ASSET.transfer(VAULT, amountToTransfer);
+        
         // 2. Emit event for whitelisters to watch and return capital
         if (amount > currentBalance) {
-            // we were only able to send part of the amount
+            // emit amount of outstanding withdraw that is being requested
             uint256 outstandingAmount = amount - currentBalance;
             emit FUNDS_REQUEST(outstandingAmount, address(VAULT_ASSET));
         }
+
+        // 3. perform transfer
+        VAULT_ASSET.transfer(VAULT, amountToTransfer);
     }
     
     /*///////////////////////////////////////////////////////////////
@@ -88,37 +91,44 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     //////////////////////////////////////////////////////////////*/
     /**
     * @notice Allows a whitelisted address to pull colalteral from the contract
-    * @dev Updates debt accounting
+    * @dev Updates debt accounting. Ensures msg.sender is whitelisted and
+    * asset is whitelisted
     * @param amount the amount being requested
     * @param asset the asset being pulled
     */
     function pullAsset(uint256 amount, address asset) onlyWhitelisted(asset) public {
-        require(amount <= IERC20(asset).balanceOf(address(this)), "INSUFFICIENT FUNDS");
+        IERC20 _asset = IERC20(asset);
+        require(amount <= _asset.balanceOf(address(this)), "INSUFFICIENT FUNDS");
         // update accounting
         debts[msg.sender][asset] += amount;
         totalDebt[asset] += amount;
-        VAULT_ASSET.transfer(msg.sender, amount);
+        _asset.transfer(msg.sender, amount);
     }
 
     /**
     * @notice Allows a whitelisted address to return collateral
     * @dev the whitelisted address must have approved this contract as a spender of
-    * VAULT_COLLATERAL before this function can be used
+    * VAULT_COLLATERAL before this function can be used. Ensures msg.sender is
+    * whitelisted and asset is whitelisted
     * @param amount the amount of debt being repaid
     * @param asset the asset being returned
     */
     function returnCollateral(uint256 amount, address asset) onlyWhitelisted(asset) public {
-        IERC20(asset).transferFrom(msg.sender, address(this), amount);
         // update accounting
         uint256 _senderDebt = debts[msg.sender][asset];
         uint256 _totalDebt = totalDebt[asset];
+        
+        // validate if debt is paid off for msg.sender
         if (amount >= _senderDebt) {
-            // this user has no debt
             debts[msg.sender][asset] = 0;
-        } else if (amount >= _totalDebt) {
-            // there is no more outstanding debt
+        }
+        
+        // validate if debt is paid off for the entire pool
+        if (amount >= _totalDebt) {
             totalDebt[asset] = 0;
         }
+
+        IERC20(asset).transferFrom(msg.sender, address(this), amount);
     }
 
     /*///////////////////////////////////////////////////////////////
