@@ -9,7 +9,7 @@ import {onlyAdmin} from "openzeppelin-solidity/test/helpers/onlyAdmin";
 import {IERC4626} from "../../interfaces/IERC4626.sol";
 
 
-contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
+contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -44,29 +44,37 @@ contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
       @return shares The shares in the vault burned from sender
     */
     function withdraw(address to, uint256 underlyingAmount) public override returns (uint256 shares) {
-        shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
+        // todo: This function needs to generalise for N strategies
+        
+        uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
+        uint256 preUnderlying = balanceOfUnderlying(address(this));
+
         //Check if requested withdraw amount is above vaults underlying balance
-        if (underlyingAmount > balanceOfUnderlying(address(this))) {
-            uint diff = underlyingAmount - balanceOfUnderlying(address(this));
-        //withdraw differece from strategy to fund withdrawal
+        if (underlyingAmount > preUnderlying) {
+            uint256 diff = underlyingAmount - preUnderlying;
+
+            // withdraw differece from strategy to fund withdrawal
             strategy.withdraw(diff);
-            _burn(msg.sender, shares);
-            UNDERLYING.safeTransfer(to, underlyingAmount);
-            bufferUpKeep()
+
+            // check if withdraw gave us enough tokens back
+            uint256 postUnderlying = balanceOfUnderlying(address(this));
+            if (underlyingAmount > postUnderlying) {
+                // still don't have enough, pay out as much as possible
+                uint256 actualShares = postUnderlying.fdiv(exchangeRate(), BASE_UNIT);
+                _burn(msg.sender, actualShares);
+                UNDERLYING.safeTransfer(to, underlyingAmount);
+            } else {
+                // have enough balance to now process the whole withdraw
+                _burn(msg.sender, shares);
+                UNDERLYING.safeTransfer(to, underlyingAmount);
+            }
         } else {
+            // balance is fine to process the whole withdraw
             _burn(msg.sender, shares);
             UNDERLYING.safeTransfer(to, underlyingAmount);
-            bufferUpKeep();
         }
+        bufferUpkeep();
     }
-
-        // UNDERLYING.safeTransfer(to, underlyingAmount);
-        // //custom logic to pull from strategy if withdrawal caused vault to go below safeVaultBalance
-        // if (balanceOf(address(this) < safeVaultBalance())) {
-        // 	bufferUpKeep()
-        // } else {
-
-        // }
     
 
     /**
@@ -136,16 +144,7 @@ contract MockVault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
     function removeApprovedStrategy(address strategy) internal onlyAdmin returns (bool) {
         Strategies[strategy]=false;
     }
-    /// Old Function to deposit into strategy contract
-    // function depositStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
-    //     if (Strategies[strategy] = true) {
-    //      strategy.deposit(amount);
-    //      return balance;
-    //      strategy.rebalance()
-    //     } else {
-    //       revert();
-    // 	}
-    // } 
+
     function depositStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
         if (Strategies[strategy] = true) {
             strategy.deposit(amount);
