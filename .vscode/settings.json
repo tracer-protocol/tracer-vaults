@@ -1,5 +1,0 @@
-{
-"solidity.linter": "solhint",
-"solidity.solhintRules": {
- "indentation": [4]
-}
