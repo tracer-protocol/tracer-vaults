@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity 0.8.10;
+pragma solidity ^0.8.0;
 
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
@@ -17,7 +17,13 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
     ERC20 immutable UNDERLYING;	
     uint256 immutable BASE_UNIT;	
 
-    mapping (address => bool) public strategies;
+    // strategy variables
+    mapping (address => bool) public isStrategy;
+    address[] public strategies;
+
+    // buffer variables
+    uint256 public buffer_ceil = 0.05;
+    uint256 public buffer_floor = 0.025;
 
     constructor(ERC20 underlying, uint256 baseUnit) {
         UNDERLYING = underlying;
@@ -136,45 +142,30 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
     //////////////////////////////////////////////////////////////*/
     
     //sets an approved strategy
-    function setApprovedStrategy(address strategy) internal onlyAdmin returns (bool) {
-        Strategies[strategy]=true;
-        return true;
-    }
-    //removes an approved strategy
-    function removeApprovedStrategy(address strategy) internal onlyAdmin returns (bool) {
-        Strategies[strategy]=false;
+    function setApprovedStrategy(address strategy, bool status) public onlyAdmin {
+        isStrategy[strategy] = status;
     }
 
-    function depositStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
-        if (Strategies[strategy] = true) {
-            strategy.deposit(amount);
-            strategy.rebalance()
-            return balance;
-        } else {
-            revert();
-        }
+    function depositStrategy(address strategy, uint256 amount) internal {
+        require(isStrategy[strategy], "STRATEGY NOT APPROVED");
+        strategy.deposit(amount);
     } 
 
-    //Function to withdraw from Strategy
-    function withdrawFromStrategy(address strategy, uint256 amount) internal returns (uint256 balance) {
-        uint preBalance = balanceOf(address(this));
-        withdraw(strategy, amount);
-         // Checks if balance prior to withdraw is equal to balance after withdraw + amount
-        if (preBalance + amount = balanceOf(address(this))) {
-            return balanceOf(address(this));
-        } else {
-            strategy.rebalance();
-        }
+    // Function to withdraw from a specific strategy
+    function withdrawFromStrategy(address strategy, uint256 amount) internal {
+        // todo the logic to check how much was returned from the strategy could go here
+        require(isStrategy[strategy], "STRATEGY NOT APPROVED");
+        strategy.withdraw(diff);
     }
 
     //Function to rebalance Strategy to approach buffer
     function bufferUpKeep() external returns (bool) {
         //calls strategy for buffer funds
         //TODO: how to bulk rebalance strategies, is this possible?
-        for (true in Strategies) {
-            strategy.rebalance();
-            return true;
-        }
+        // for (true in Strategies) {
+        //     strategy.rebalance();
+        //     return true;
+        // }
     }
 
 
@@ -184,21 +175,13 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4625 {
     //////////////////////////////////////////////////////////////*/
     // The Vault contracts buffer balance should be above 0.05 of total
     function buffer() internal view returns (uint256) {
-        return (balanceOf(address(this))+ balanceOf(address(strategyAddr)))* 0.05;
+        return (balanceOf(address(this)) + balanceOf(address(strategyAddr))) * buffer_ceil;
     }
     //safe vault balance should be above 0.025 of total
     function safeVaultBalance() view returns (uint256) {
-        return (0.025 * (balanceOf(address.(this)) + balanceOf(address(strategy))));
+        return (buffer_floor * (balanceOf(address.(this)) + balanceOf(address(strategy))));
     }
-    
-    // Checks strategy is in mapping
-    function isStrategy() internal view returns (uint256) {
-      //some logic to query max strategies for contract and their balance
-    }
-    // Checks when next rollover
-    function getRollover() external view returns (uint256) {
-      // some logic to check if strategy has rolled over
-    }
+
     //Checks the strategys balance
     function getValue(address strategy) external view returns (uint256) {
       // some logic to call strategy value
