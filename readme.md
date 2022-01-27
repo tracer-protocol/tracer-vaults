@@ -1,5 +1,23 @@
 # Tracer Vaults
 WIP Tracer vaults
+
+## Getting Started
+Install dependencies using
+```
+yarn install
+```
+
+Check linting and fix linting issues using
+```
+yarn run lint
+yarn run lint:fix
+```
+
+Run tests using
+```
+yarn run test
+```
+
 ## Blueprint
 
 ```ml
