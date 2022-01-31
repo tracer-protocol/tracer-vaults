@@ -6,8 +6,13 @@ import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
 import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
 import "./interfaces/IERC4626.sol";
 import "./interfaces/IStrategy.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
+contract Vault is
+    ERC20("Mock cERC20 Strategy", "cERC20", 18),
+    IERC4626,
+    Ownable
+{
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -15,7 +20,6 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
     uint256 immutable BASE_UNIT;
 
     // strategy variables
-    mapping(address => bool) public isStrategy;
     address[] public strategies;
 
     // buffer variables
@@ -23,12 +27,22 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
     uint256 public buffer_ceil = 1;
     uint256 public buffer_floor = 1;
 
-    constructor(ERC20 underlying, uint256 baseUnit) {
-        UNDERLYING = underlying;
+    constructor(
+        address _underlying,
+        uint256 baseUnit,
+        address[] memory _strategies
+    ) {
+        UNDERLYING = ERC20(_underlying);
         BASE_UNIT = baseUnit;
 
-        // todo: init default strategies
-        strategies.push(address(this));
+        // add in base strategies
+        for (uint256 i = 0; i < _strategies.length; i++) {
+            // check all items before actions[i], does not equal to action[i]
+            for (uint256 j = 0; j < i; j++) {
+                require(_strategies[i] != _strategies[j], "duplicated action");
+            }
+            strategies.push(_strategies[i]);
+        }
     }
 
     /**
@@ -37,10 +51,20 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
       @param underlyingAmount The amount of the underlying token to deposit.
       @return shares The shares in the vault credited to `to`
     */
-    function deposit(address to, uint256 underlyingAmount) public override returns (uint256 shares) {
+    function deposit(address to, uint256 underlyingAmount)
+        public
+        override
+        returns (uint256 shares)
+    {
         shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
         _mint(to, shares);
-        UNDERLYING.safeTransferFrom(msg.sender, address(this), underlyingAmount);
+        UNDERLYING.safeTransferFrom(
+            msg.sender,
+            address(this),
+            underlyingAmount
+        );
+
+        // todo allocate to strategies
         bufferUpKeep();
     }
 
@@ -50,38 +74,58 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
       @param underlyingAmount The amount of the underlying token to withdraw.
       @return shares The shares in the vault burned from sender
     */
-    function withdraw(address to, uint256 underlyingAmount) public override returns (uint256 shares) {
-        // todo: This function needs to generalise for N strategies
-        IStrategy strategy = IStrategy(strategies[0]);
+    function withdraw(address to, uint256 underlyingAmount)
+        public
+        override
+        returns (uint256)
+    {
+        uint256 startUnderlying = balanceOfUnderlying(address(this));
 
-        uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
-        uint256 preUnderlying = balanceOfUnderlying(address(this));
-
-        //Check if requested withdraw amount is above vaults underlying balance
-        if (underlyingAmount > preUnderlying) {
-            uint256 diff = underlyingAmount - preUnderlying;
-
-            // withdraw differece from strategy to fund withdrawal
-            strategy.withdraw(diff);
-
-            // check if withdraw gave us enough tokens back
-            uint256 postUnderlying = balanceOfUnderlying(address(this));
-            if (underlyingAmount > postUnderlying) {
-                // still don't have enough, pay out as much as possible
-                uint256 actualShares = postUnderlying.fdiv(exchangeRate(), BASE_UNIT);
-                _burn(msg.sender, actualShares);
-                UNDERLYING.safeTransfer(to, underlyingAmount);
-            } else {
-                // have enough balance to now process the whole withdraw
-                _burn(msg.sender, shares);
-                UNDERLYING.safeTransfer(to, underlyingAmount);
-            }
-        } else {
-            // balance is fine to process the whole withdraw
+        // if we have enough, simply pay the user
+        if (startUnderlying >= underlyingAmount) {
+            uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
             _burn(msg.sender, shares);
             UNDERLYING.safeTransfer(to, underlyingAmount);
+            return shares;
         }
+
+        // can't simply pay out of the current balance, compute outstanding amount
+        uint256 outstandingUnderlying = underlyingAmount - startUnderlying;
+
+        // withdraw from the strategies one by one until withdraw is complete
+        // or we run out of funds
+        uint256 postUnderlying = startUnderlying;
+        for (uint256 i = 0; i < strategies.length; i++) {
+            IStrategy strategy = IStrategy(strategies[0]);
+            strategy.withdraw(outstandingUnderlying);
+            postUnderlying = balanceOfUnderlying(address(this));
+
+            if (postUnderlying >= underlyingAmount) {
+                // have enough to pay, stop withdraw
+                uint256 shares = underlyingAmount.fdiv(
+                    exchangeRate(),
+                    BASE_UNIT
+                );
+                _burn(msg.sender, shares);
+                UNDERLYING.safeTransfer(to, underlyingAmount);
+                return shares;
+            } else {
+                // must continue to withdraw, figure out excess
+                // PREDICATE: outstandingUnderlying >= 0
+                outstandingUnderlying = underlyingAmount - postUnderlying;
+            }
+        }
+
+        // were not able to withdraw enough to pay the user. Simply pay what is
+        // possible for now.
+        uint256 actualShares = postUnderlying.fdiv(
+            exchangeRate(),
+            BASE_UNIT
+        );
+        _burn(msg.sender, actualShares);
+        UNDERLYING.safeTransfer(to, postUnderlying);
         bufferUpKeep();
+        return actualShares;
     }
 
     /**
@@ -97,6 +141,7 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
         address to,
         uint256 underlyingAmount
     ) public virtual override returns (uint256 shares) {
+        // todo
         shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
 
         _burn(from, shares);
@@ -110,7 +155,12 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
       @param shareAmount The amount of shares to redeem.
       @return value The underlying amount transferred to `to`.
     */
-    function redeem(address to, uint256 shareAmount) public virtual override returns (uint256 value) {
+    function redeem(address to, uint256 shareAmount)
+        public
+        virtual
+        override
+        returns (uint256 value)
+    {
         value = shareAmount.fmul(exchangeRate(), BASE_UNIT);
 
         _burn(msg.sender, shareAmount);
@@ -140,19 +190,6 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
     /*///////////////////////////////////////////////////////////////
                     Tracer Custom Mutable Functions
     //////////////////////////////////////////////////////////////*/
-
-    //sets an approved strategy
-    // todo: re add access control here
-    function setApprovedStrategy(address strategy, bool status) public {
-        isStrategy[strategy] = status;
-    }
-
-    // Function to withdraw from a specific strategy
-    function withdrawFromStrategy(address strategy, uint256 amount) internal {
-        // todo the logic to check how much was returned from the strategy could go here
-        require(isStrategy[strategy], "STRATEGY NOT APPROVED");
-        IStrategy(strategy).withdraw(amount);
-    }
 
     //Function to rebalance Strategy to approach buffer
     function bufferUpKeep() public returns (bool) {
@@ -199,7 +236,8 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
 
         if (cTokenSupply == 0) return BASE_UNIT;
 
-        return UNDERLYING.balanceOf(address(this)).fdiv(cTokenSupply, BASE_UNIT);
+        return
+            UNDERLYING.balanceOf(address(this)).fdiv(cTokenSupply, BASE_UNIT);
     }
 
     /** 
@@ -215,7 +253,13 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
       @param user The user to get the underlying balance of.
       @return balance The user's Vault balance in underlying tokens.
     */
-    function balanceOfUnderlying(address user) public view virtual override returns (uint256 balance) {
+    function balanceOfUnderlying(address user)
+        public
+        view
+        virtual
+        override
+        returns (uint256 balance)
+    {
         return balanceOf[user].fmul(exchangeRate(), BASE_UNIT);
     }
 
@@ -233,7 +277,13 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
       @param underlyingAmount the amount of underlying tokens to convert to shares.
       @return shareAmount the amount of shares corresponding to a given underlying amount
     */
-    function calculateShares(uint256 underlyingAmount) public view virtual override returns (uint256 shareAmount) {
+    function calculateShares(uint256 underlyingAmount)
+        public
+        view
+        virtual
+        override
+        returns (uint256 shareAmount)
+    {
         shareAmount = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
     }
 
@@ -242,7 +292,13 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626 {
       @param shareAmount the amount of shares to convert to an underlying amount.
       @return underlyingAmount the amount of underlying corresponding to a given amount of shares.
     */
-    function calculateUnderlying(uint256 shareAmount) public view virtual override returns (uint256 underlyingAmount) {
+    function calculateUnderlying(uint256 shareAmount)
+        public
+        view
+        virtual
+        override
+        returns (uint256 underlyingAmount)
+    {
         underlyingAmount = shareAmount.fmul(exchangeRate(), BASE_UNIT);
     }
 }
