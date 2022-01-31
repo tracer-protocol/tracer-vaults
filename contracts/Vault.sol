@@ -8,21 +8,16 @@ import "./interfaces/IERC4626.sol";
 import "./interfaces/IStrategy.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626, Ownable {
+contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
-    ERC20 immutable public UNDERLYING;
+    ERC20 public immutable UNDERLYING;
     uint256 public BASE_UNIT;
 
     // strategy variables
     address[] public strategies;
     uint256[] public percentAllocations;
-
-    // buffer variables
-    // todo sort scaling params / use rational_const type
-    uint256 public buffer_ceil = 1;
-    uint256 public buffer_floor = 1;
 
     constructor(
         address _underlying,
@@ -64,6 +59,8 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626, Ownable
         shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
         _mint(to, shares);
         UNDERLYING.safeTransferFrom(msg.sender, address(this), underlyingAmount);
+        // distribute funds to the strategies
+        distributeFunds();
     }
 
     /**
@@ -176,13 +173,13 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626, Ownable
     /**
      * @notice Distributes funds to strategies
      */
-    function distibuteFunds() internal {
+    function distributeFunds() internal {
         uint256 totalBalance = totalHoldings();
 
         // keep track of total percentage to make sure we're summing up to 100%
         uint256 sumPercentage;
         for (uint8 i = 0; i < strategies.length; i++) {
-            uint256 percent = percentAllocations[i]; 
+            uint256 percent = percentAllocations[i];
             sumPercentage += percent;
             require(sumPercentage <= BASE_UNIT, "PERCENTAGE_SUM_EXCEED_MAX");
             uint256 newAmount = (totalBalance * percent) / BASE_UNIT;
@@ -207,19 +204,6 @@ contract Vault is ERC20("Mock cERC20 Strategy", "cERC20", 18), IERC4626, Ownable
     /*///////////////////////////////////////////////////////////////
                     Tracer Custom View Functions
     //////////////////////////////////////////////////////////////*/
-    // The Vault contracts buffer balance should be above 0.05 of total
-    function buffer() public view returns (uint256) {
-        // todo
-        //return (balanceOf(address(this)) + balanceOf(address(strategyAddr))) * buffer_ceil;
-        return 0;
-    }
-
-    //safe vault balance should be above 0.025 of total
-    function safeVaultBalance() public view returns (uint256) {
-        // todo
-        return 0;
-        //return (buffer_floor * (balanceOf(address(this)) + balanceOf(address(strategy))));
-    }
 
     //Checks the strategys balance
     function getValue(address strategy) external view returns (uint256) {
