@@ -270,6 +270,13 @@ describe("Vault", async () => {
             )
         })
 
-        it("reverts if the user does not have enough shares", async () => {})
+        it.only("reverts if the user does not have enough shares", async () => {
+            await expect(
+                vault.withdraw(
+                    accounts[0].address,
+                    ethers.utils.parseEther("2")
+                )
+            ).to.be.revertedWith("INSUFFICIENT_SHARES")
+        })
     })
 })

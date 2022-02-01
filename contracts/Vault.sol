@@ -71,12 +71,16 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
       @return shares The shares in the vault burned from sender
     */
     function withdraw(address to, uint256 underlyingAmount) public override returns (uint256) {
+        // don't trigger if the user is withdrawing more shares than they have
+        // todo it feels this can be highly optimised
+        uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
+        require(this.balanceOf(msg.sender) >= shares, "INSUFFICIENT_SHARES");
+
         // check how much underlying we have "on hand"
         uint256 startUnderlying = UNDERLYING.balanceOf(address(this));
 
         // if we have enough, simply pay the user
         if (startUnderlying >= underlyingAmount) {
-            uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
             _burn(msg.sender, shares);
             UNDERLYING.safeTransfer(to, underlyingAmount);
             return shares;
@@ -95,7 +99,6 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
 
             if (postUnderlying >= underlyingAmount) {
                 // have enough to pay, stop withdraw
-                uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
                 _burn(msg.sender, shares);
                 UNDERLYING.safeTransfer(to, underlyingAmount);
                 return shares;
@@ -108,7 +111,6 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
 
         // were not able to withdraw enough to pay the user. Simply pay what is
         // possible for now.
-        uint256 er = exchangeRate();
         uint256 actualShares = postUnderlying.fdiv(exchangeRate(), BASE_UNIT);
         _burn(msg.sender, actualShares);
         UNDERLYING.safeTransfer(to, postUnderlying);
