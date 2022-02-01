@@ -6,11 +6,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // A Simple mock strategy contract. DO NOT USE IN PRODUCTIOn
 contract MockStrategy is IStrategy, AccessControl {
-    
     address public VAULT;
     // vault collateral asset
     IERC20 public VAULT_ASSET; //eg DAI in a ETH/USD+DAI pool
-
 
     // mock params for easy testing
     uint256 _value;
@@ -56,16 +54,16 @@ contract MockStrategy is IStrategy, AccessControl {
     }
 
     /**
-    * @dev this function is helpful for testing. It allows you to arbitrarily move funds
-    * out of a strategy
-    */
+     * @dev this function is helpful for testing. It allows you to arbitrarily move funds
+     * out of a strategy
+     */
     function transferFromStrategy(address to, uint256 amount) external {
         VAULT_ASSET.transfer(to, amount);
     }
 
     /**
-    * @dev sets the vaults value. Helpful for testing methods relying on this
-    */
+     * @dev sets the vaults value. Helpful for testing methods relying on this
+     */
     function setValue(uint256 newValue) external {
         _value = newValue;
     }

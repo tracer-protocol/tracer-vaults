@@ -219,11 +219,11 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
                             View Functions
     //////////////////////////////////////////////////////////////*/
 
-    /** 
-    * @notice returns the exchange rate in underlying per share of vault
-    * @dev this relies on the expected value held by strategies. Until profit
-    * is harvested this may be inaccurate.
-    */
+    /**
+     * @notice returns the exchange rate in underlying per share of vault
+     * @dev this relies on the expected value held by strategies. Until profit
+     * is harvested this may be inaccurate.
+     */
     function exchangeRate() internal view returns (uint256) {
         uint256 cTokenSupply = totalSupply;
 

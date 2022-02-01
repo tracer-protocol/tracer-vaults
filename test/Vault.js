@@ -35,7 +35,6 @@ describe("Vault", async () => {
         )
 
         await mockStrategy.init(vault.address, underlying.address)
-
     })
 
     describe("constructor", async () => {
@@ -109,9 +108,7 @@ describe("Vault", async () => {
         })
         it("distributes funds to the strategies", async () => {
             // 95% of funds go to strategy 0
-            let strategyBalance = await underlying.balanceOf(
-                mockStrategy
-            )
+            let strategyBalance = await underlying.balanceOf(mockStrategy)
             assert.equal(
                 strategyBalance.toString(),
                 ethers.utils.parseEther("0.95").toString()
@@ -180,9 +177,8 @@ describe("Vault", async () => {
         })
     })
 
-    describe("withdraw", async() => {
-
-        beforeEach(async() => {
+    describe("withdraw", async () => {
+        beforeEach(async () => {
             await underlying.approve(
                 vault.address,
                 ethers.utils.parseEther("1")
@@ -193,58 +189,89 @@ describe("Vault", async () => {
             )
         })
 
-        it("pays directly out of the vault if there is enough capital on hand", async() => {
+        it("pays directly out of the vault if there is enough capital on hand", async () => {
             let startBalance = await underlying.balanceOf(accounts[0].address)
             let vaultBalance = await underlying.balanceOf(vault.address)
             // withdraw all funds in the vault
-            await vault.withdraw(accounts[0].address, ethers.utils.parseEther("0.05"))
+            await vault.withdraw(
+                accounts[0].address,
+                ethers.utils.parseEther("0.05")
+            )
             let endBalance = await underlying.balanceOf(accounts[0].address)
-            assert.equal(endBalance.sub(startBalance).toString(), ethers.utils.parseEther("0.05").toString())
+            assert.equal(
+                endBalance.sub(startBalance).toString(),
+                ethers.utils.parseEther("0.05").toString()
+            )
         })
 
-        it("withdraws from strategies to get liquid capital to pay out", async() => {
+        it("withdraws from strategies to get liquid capital to pay out", async () => {
             let startBalance = await underlying.balanceOf(accounts[0].address)
             let startingVaultBalance = await underlying.balanceOf(vault.address)
-            let startingStrategyBalance = await underlying.balanceOf(mockStrategy.address)
+            let startingStrategyBalance = await underlying.balanceOf(
+                mockStrategy.address
+            )
             // withdraw all funds in the vault
-            await vault.withdraw(accounts[0].address, ethers.utils.parseEther("1"))
-            let endStrategyBalance = await underlying.balanceOf(mockStrategy.address)
+            await vault.withdraw(
+                accounts[0].address,
+                ethers.utils.parseEther("1")
+            )
+            let endStrategyBalance = await underlying.balanceOf(
+                mockStrategy.address
+            )
             let endVaultBalance = await underlying.balanceOf(vault.address)
             let endBalance = await underlying.balanceOf(accounts[0].address)
 
             // 1 ETH pulled from vault in total
 
             // 0.05 came from the vault itself
-            assert.equal(endVaultBalance.sub(startingVaultBalance).toString(), ethers.utils.parseEther("-0.05").toString())
+            assert.equal(
+                endVaultBalance.sub(startingVaultBalance).toString(),
+                ethers.utils.parseEther("-0.05").toString()
+            )
 
             // 0.95 came from the strategy
-            assert.equal(endStrategyBalance.sub(startingStrategyBalance).toString(), ethers.utils.parseEther("-0.95").toString())
+            assert.equal(
+                endStrategyBalance.sub(startingStrategyBalance).toString(),
+                ethers.utils.parseEther("-0.95").toString()
+            )
 
             // in total the user gained 1 ETH worth
-            assert.equal(endBalance.sub(startBalance).toString(), ethers.utils.parseEther("1").toString())
+            assert.equal(
+                endBalance.sub(startBalance).toString(),
+                ethers.utils.parseEther("1").toString()
+            )
         })
 
-        it.only("only takes the number of shares proportional to capital returned", async() => {
+        it.only("only takes the number of shares proportional to capital returned", async () => {
             let startBalance = await underlying.balanceOf(accounts[0].address)
             let startShares = await vault.balanceOf(accounts[0].address)
             // remove funds from strategy so user cannot get paid out enough
-            await mockStrategy.transferFromStrategy(accounts[1].address, ethers.utils.parseEther("0.95"))
+            await mockStrategy.transferFromStrategy(
+                accounts[1].address,
+                ethers.utils.parseEther("0.95")
+            )
             // pretend the strategy still has "value" in it so that this is accounted for in the total capital
             await mockStrategy.setValue(ethers.utils.parseEther("0.95"))
-            
-            await vault.withdraw(accounts[0].address, ethers.utils.parseEther("1"))
+
+            await vault.withdraw(
+                accounts[0].address,
+                ethers.utils.parseEther("1")
+            )
             let endBalance = await underlying.balanceOf(accounts[0].address)
             let endShares = await vault.balanceOf(accounts[0].address)
 
             // user only got 0.05 underlying back
-            assert.equal(endBalance.sub(startBalance).toString(), ethers.utils.parseEther("0.05").toString())
+            assert.equal(
+                endBalance.sub(startBalance).toString(),
+                ethers.utils.parseEther("0.05").toString()
+            )
             // user only burned 0.05 shares
-            assert.equal(endShares.sub(startShares).toString(), ethers.utils.parseEther("-0.05").toString())
-
+            assert.equal(
+                endShares.sub(startShares).toString(),
+                ethers.utils.parseEther("-0.05").toString()
+            )
         })
 
-        it("reverts if the user does not have enough shares", async() => {
-
-        })
+        it("reverts if the user does not have enough shares", async () => {})
     })
 })
