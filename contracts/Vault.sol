@@ -76,7 +76,6 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
 
         // if we have enough, simply pay the user
         if (startUnderlying >= underlyingAmount) {
-            console.log("A");
             uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
             _burn(msg.sender, shares);
             UNDERLYING.safeTransfer(to, underlyingAmount);
@@ -95,7 +94,6 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
             postUnderlying = UNDERLYING.balanceOf(address(this));
 
             if (postUnderlying >= underlyingAmount) {
-                console.log("B");
                 // have enough to pay, stop withdraw
                 uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
                 _burn(msg.sender, shares);
@@ -108,16 +106,10 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
             }
         }
 
-        console.log("underlying");
-        console.logUint(postUnderlying);
-
         // were not able to withdraw enough to pay the user. Simply pay what is
         // possible for now.
         uint256 er = exchangeRate();
-        console.logUint(er);
         uint256 actualShares = postUnderlying.fdiv(exchangeRate(), BASE_UNIT);
-        console.log("actual shares");
-        console.logUint(actualShares);
         _burn(msg.sender, actualShares);
         UNDERLYING.safeTransfer(to, postUnderlying);
         return actualShares;

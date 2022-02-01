@@ -7,7 +7,6 @@ describe("Vault", async () => {
     let underlying
     let baseUnit = ethers.utils.parseEther("1") //18 decimals default
     let accounts
-    let defaultRandomStrategy
     let mockStrategy
 
     beforeEach(async () => {
@@ -24,9 +23,6 @@ describe("Vault", async () => {
         }
 
         mockStrategy = await strategyFactory.deploy()
-        defaultRandomStrategy = ethers.utils.getAddress(
-            ethers.utils.hexlify(ethers.utils.randomBytes(20))
-        )
         vault = await vaultFactory.deploy(
             underlying.address,
             baseUnit,
@@ -48,7 +44,7 @@ describe("Vault", async () => {
             assert.equal(_underlying, underlying.address)
             assert.equal(_baseUnit.toString(), baseUnit.toString())
             assert.equal(_owner, accounts[0].address)
-            assert.equal(_strategies, mockStrategy)
+            assert.equal(_strategies, mockStrategy.address)
             assert.equal(
                 _percentAllocations.toString(),
                 ethers.utils.parseEther("0.95").toString()
@@ -60,7 +56,7 @@ describe("Vault", async () => {
                 (vault = vaultFactory.deploy(
                     underlying.address,
                     baseUnit,
-                    [mockStrategy],
+                    [mockStrategy.address],
                     [ethers.utils.parseEther("1.01")]
                 ))
             ).to.be.revertedWith("PERC_SUM_MAX")
@@ -71,7 +67,7 @@ describe("Vault", async () => {
                 (vault = vaultFactory.deploy(
                     underlying.address,
                     baseUnit,
-                    [mockStrategy],
+                    [mockStrategy.address],
                     [
                         ethers.utils.parseEther("0.5"),
                         ethers.utils.parseEther("0.5"),
@@ -85,7 +81,7 @@ describe("Vault", async () => {
                 (vault = vaultFactory.deploy(
                     underlying.address,
                     baseUnit,
-                    [mockStrategy, mockStrategy],
+                    [mockStrategy.address, mockStrategy.address],
                     [
                         ethers.utils.parseEther("0.5"),
                         ethers.utils.parseEther("0.5"),
@@ -108,7 +104,9 @@ describe("Vault", async () => {
         })
         it("distributes funds to the strategies", async () => {
             // 95% of funds go to strategy 0
-            let strategyBalance = await underlying.balanceOf(mockStrategy)
+            let strategyBalance = await underlying.balanceOf(
+                mockStrategy.address
+            )
             assert.equal(
                 strategyBalance.toString(),
                 ethers.utils.parseEther("0.95").toString()
@@ -242,7 +240,7 @@ describe("Vault", async () => {
             )
         })
 
-        it.only("only takes the number of shares proportional to capital returned", async () => {
+        it("only takes the number of shares proportional to capital returned", async () => {
             let startBalance = await underlying.balanceOf(accounts[0].address)
             let startShares = await vault.balanceOf(accounts[0].address)
             // remove funds from strategy so user cannot get paid out enough
