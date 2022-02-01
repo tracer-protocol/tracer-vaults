@@ -192,6 +192,7 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
 
     function updatePercentAllocations(uint256[] memory _newPercents) public onlyOwner {
         delete percentAllocations;
+        require(_newPercents.length == strategies.length, "LEN_MISMATCH");
         uint256 sumPercent = 0;
         for (uint256 j = 0; j < _newPercents.length; j++) {
             uint256 percent = _newPercents[j];

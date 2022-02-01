@@ -130,4 +130,40 @@ describe("Vault", async () => {
             ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
         })
     })
+
+    describe("updatePercentAllocations", async () => {
+        it("reverts if the new percentages do not match the number of strategies", async () => {
+            // default vault only has one strategy, cannot set two percentages
+            await expect(
+                vault.updatePercentAllocations([
+                    ethers.utils.parseEther("0.5"),
+                    ethers.utils.parseEther("0.5"),
+                ])
+            ).to.be.revertedWith("LEN_MISMATCH")
+        })
+
+        it("reverts if sum exceeds 100%", async () => {
+            await expect(
+                vault.updatePercentAllocations([
+                    ethers.utils.parseEther("1.1")
+                ])
+            ).to.be.revertedWith("PERC_SUM_MAX")
+        })
+
+        it("reverts if the caller is not the owner", async () => {
+            await expect(
+                vault
+                    .connect(accounts[1])
+                    .updatePercentAllocations([ethers.utils.parseEther("1")])
+            ).to.be.revertedWith("Ownable: caller is not the owner")
+        })
+
+        it("replaces the percent allocations in the contract", async () => {
+            let oldPercentAllocations = await vault.percentAllocations(0)
+            assert.equal(oldPercentAllocations.toString(), ethers.utils.parseEther("0.95"))
+            await vault.updatePercentAllocations([ethers.utils.parseEther("0.5")])
+            let newPercentAllocations = await vault.percentAllocations(0)
+            assert.equal(newPercentAllocations.toString(), ethers.utils.parseEther("0.5"))
+        })
+    })
 })
