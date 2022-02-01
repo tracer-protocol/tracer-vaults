@@ -151,6 +151,7 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
       @return value The underlying amount transferred to `to`.
     */
     function redeem(address to, uint256 shareAmount) public virtual override returns (uint256 value) {
+        // todo
         value = shareAmount.fmul(exchangeRate(), BASE_UNIT);
 
         _burn(msg.sender, shareAmount);
@@ -170,6 +171,7 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
         address to,
         uint256 shareAmount
     ) public virtual override returns (uint256 value) {
+        // todo
         value = shareAmount.fdiv(exchangeRate(), BASE_UNIT);
 
         _burn(from, value);
@@ -218,9 +220,10 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /** 
-        Get the exchange rate between shares and underlying tokens.
+    * @notice returns the exchange rate in underlying per share of vault
+    * @dev this relies on the expected value held by strategies. Until profit
+    * is harvested this may be inaccurate.
     */
-
     function exchangeRate() internal view returns (uint256) {
         uint256 cTokenSupply = totalSupply;
 
@@ -252,10 +255,10 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
 
     /** 
       @notice Calculates the total amount of underlying tokens the Vault holds.
-      @return totalUnderlyingHeld The total amount of underlying tokens the Vault holds.
+      @return totalUnderlyingHeld The total amount of underlying tokens the Vault and
+      * its strategies are holding.
     */
     function totalHoldings() public view virtual override returns (uint256) {
-        // todo this must report the holdings of strategies to accurately return
         uint256 strategyValueSum;
         for (uint256 i = 0; i < strategies.length; i++) {
             uint256 value = IStrategy(strategies[i]).value();
