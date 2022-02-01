@@ -207,8 +207,15 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     //Checks the strategys balance
-    function getValue(address strategy) external view returns (uint256) {
+    // todo how does this work alongside totalHoldings() -> decide on this interface
+    function getValue() external view returns (uint256) {
         // some logic to call strategy value
+        uint256 strategyValueSum;
+        for (uint256 i = 0; i < strategies.length; i++) {
+            uint256 value = IStrategy(strategies[i]).value();
+            strategyValueSum += value;
+        }
+        return strategyValueSum;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -250,7 +257,6 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     */
     function totalHoldings() public view virtual override returns (uint256) {
         return UNDERLYING.balanceOf(address(this));
-        //add logic to return current buffer balance
     }
 
     /** 
