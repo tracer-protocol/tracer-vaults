@@ -14,7 +14,10 @@
     "scripts": {
         "lint": "prettier --check .",
         "lint:fix": "prettier . --write",
-        "test": "npx hardhat test"
+        "test": "npx hardhat test",
+        "build": "npm run clean && npm run compile",
+        "clean": "npx hardhat clean",
+        "compile": "npx hardhat compile"
     },
     "dependencies": {
         "@openzeppelin/contracts": "^4.4.2",
