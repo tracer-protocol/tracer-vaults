@@ -144,9 +144,7 @@ describe("Vault", async () => {
 
         it("reverts if sum exceeds 100%", async () => {
             await expect(
-                vault.updatePercentAllocations([
-                    ethers.utils.parseEther("1.1")
-                ])
+                vault.updatePercentAllocations([ethers.utils.parseEther("1.1")])
             ).to.be.revertedWith("PERC_SUM_MAX")
         })
 
@@ -160,10 +158,18 @@ describe("Vault", async () => {
 
         it("replaces the percent allocations in the contract", async () => {
             let oldPercentAllocations = await vault.percentAllocations(0)
-            assert.equal(oldPercentAllocations.toString(), ethers.utils.parseEther("0.95"))
-            await vault.updatePercentAllocations([ethers.utils.parseEther("0.5")])
+            assert.equal(
+                oldPercentAllocations.toString(),
+                ethers.utils.parseEther("0.95")
+            )
+            await vault.updatePercentAllocations([
+                ethers.utils.parseEther("0.5"),
+            ])
             let newPercentAllocations = await vault.percentAllocations(0)
-            assert.equal(newPercentAllocations.toString(), ethers.utils.parseEther("0.5"))
+            assert.equal(
+                newPercentAllocations.toString(),
+                ethers.utils.parseEther("0.5")
+            )
         })
     })
 })
