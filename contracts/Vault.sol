@@ -7,6 +7,7 @@ import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
 import "./interfaces/IERC4626.sol";
 import "./interfaces/IStrategy.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "hardhat/console.sol";
 
 contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     using SafeTransferLib for ERC20;
@@ -70,10 +71,12 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
       @return shares The shares in the vault burned from sender
     */
     function withdraw(address to, uint256 underlyingAmount) public override returns (uint256) {
-        uint256 startUnderlying = balanceOfUnderlying(address(this));
+        // check how much underlying we have "on hand"
+        uint256 startUnderlying = UNDERLYING.balanceOf(address(this));
 
         // if we have enough, simply pay the user
         if (startUnderlying >= underlyingAmount) {
+            console.log("A");
             uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
             _burn(msg.sender, shares);
             UNDERLYING.safeTransfer(to, underlyingAmount);
@@ -89,9 +92,10 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
         for (uint256 i = 0; i < strategies.length; i++) {
             IStrategy strategy = IStrategy(strategies[0]);
             strategy.withdraw(outstandingUnderlying);
-            postUnderlying = balanceOfUnderlying(address(this));
+            postUnderlying = UNDERLYING.balanceOf(address(this));
 
             if (postUnderlying >= underlyingAmount) {
+                console.log("B");
                 // have enough to pay, stop withdraw
                 uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
                 _burn(msg.sender, shares);
@@ -104,9 +108,16 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
             }
         }
 
+        console.log("underlying");
+        console.logUint(postUnderlying);
+
         // were not able to withdraw enough to pay the user. Simply pay what is
         // possible for now.
+        uint256 er = exchangeRate();
+        console.logUint(er);
         uint256 actualShares = postUnderlying.fdiv(exchangeRate(), BASE_UNIT);
+        console.log("actual shares");
+        console.logUint(actualShares);
         _burn(msg.sender, actualShares);
         UNDERLYING.safeTransfer(to, postUnderlying);
         return actualShares;
@@ -203,22 +214,6 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     }
 
     /*///////////////////////////////////////////////////////////////
-                    Tracer Custom View Functions
-    //////////////////////////////////////////////////////////////*/
-
-    //Checks the strategys balance
-    // todo how does this work alongside totalHoldings() -> decide on this interface
-    function getValue() external view returns (uint256) {
-        // some logic to call strategy value
-        uint256 strategyValueSum;
-        for (uint256 i = 0; i < strategies.length; i++) {
-            uint256 value = IStrategy(strategies[i]).value();
-            strategyValueSum += value;
-        }
-        return strategyValueSum;
-    }
-
-    /*///////////////////////////////////////////////////////////////
                             View Functions
     //////////////////////////////////////////////////////////////*/
 
@@ -231,7 +226,11 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
 
         if (cTokenSupply == 0) return BASE_UNIT;
 
-        return UNDERLYING.balanceOf(address(this)).fdiv(cTokenSupply, BASE_UNIT);
+        // CAUTION: the exchange rate depends on the ratio of expected outstanding
+        // tokens to the current cToken supply. This may mean users get a worse or
+        // better exchange rate depending on the state of each strategy
+
+        return totalHoldings().fdiv(cTokenSupply, BASE_UNIT);
     }
 
     /** 
@@ -256,7 +255,15 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
       @return totalUnderlyingHeld The total amount of underlying tokens the Vault holds.
     */
     function totalHoldings() public view virtual override returns (uint256) {
-        return UNDERLYING.balanceOf(address(this));
+        // todo this must report the holdings of strategies to accurately return
+        uint256 strategyValueSum;
+        for (uint256 i = 0; i < strategies.length; i++) {
+            uint256 value = IStrategy(strategies[i]).value();
+            strategyValueSum += value;
+        }
+
+        // the amount of estimated capital held by the vault
+        return UNDERLYING.balanceOf(address(this)) + strategyValueSum;
     }
 
     /** 
