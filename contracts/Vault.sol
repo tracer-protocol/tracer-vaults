@@ -8,41 +8,45 @@ import "./interfaces/IERC4626.sol";
 import "./interfaces/IStrategy.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Vault is
-    ERC20("Mock cERC20 Strategy", "cERC20", 18),
-    IERC4626,
-    Ownable
-{
+contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
-    ERC20 immutable UNDERLYING;
-    uint256 immutable BASE_UNIT;
+    ERC20 public immutable UNDERLYING;
+    uint256 public BASE_UNIT;
 
     // strategy variables
     address[] public strategies;
-
-    // buffer variables
-    // todo sort scaling params / use rational_const type
-    uint256 public buffer_ceil = 1;
-    uint256 public buffer_floor = 1;
+    uint256[] public percentAllocations;
 
     constructor(
         address _underlying,
         uint256 baseUnit,
-        address[] memory _strategies
+        address[] memory _strategies,
+        uint256[] memory _percentAllocations
     ) {
         UNDERLYING = ERC20(_underlying);
         BASE_UNIT = baseUnit;
+
+        require(_strategies.length == _percentAllocations.length, "LEN_MISMATCH");
 
         // add in base strategies
         for (uint256 i = 0; i < _strategies.length; i++) {
             // check all items before actions[i], does not equal to action[i]
             for (uint256 j = 0; j < i; j++) {
-                require(_strategies[i] != _strategies[j], "duplicated action");
+                require(_strategies[i] != _strategies[j], "DUP_STRAT");
             }
             strategies.push(_strategies[i]);
         }
+
+        // ensure percent sum holds
+        uint256 sumPercent = 0;
+        for (uint256 j = 0; j < _percentAllocations.length; j++) {
+            uint256 percent = _percentAllocations[j];
+            sumPercent += percent;
+            percentAllocations.push(percent);
+        }
+        require(sumPercent <= BASE_UNIT, "PERC_SUM_MAX");
     }
 
     /**
@@ -51,21 +55,12 @@ contract Vault is
       @param underlyingAmount The amount of the underlying token to deposit.
       @return shares The shares in the vault credited to `to`
     */
-    function deposit(address to, uint256 underlyingAmount)
-        public
-        override
-        returns (uint256 shares)
-    {
+    function deposit(address to, uint256 underlyingAmount) public override returns (uint256 shares) {
         shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
         _mint(to, shares);
-        UNDERLYING.safeTransferFrom(
-            msg.sender,
-            address(this),
-            underlyingAmount
-        );
-
-        // todo allocate to strategies
-        bufferUpKeep();
+        UNDERLYING.safeTransferFrom(msg.sender, address(this), underlyingAmount);
+        // distribute funds to the strategies
+        distributeFunds();
     }
 
     /**
@@ -74,11 +69,7 @@ contract Vault is
       @param underlyingAmount The amount of the underlying token to withdraw.
       @return shares The shares in the vault burned from sender
     */
-    function withdraw(address to, uint256 underlyingAmount)
-        public
-        override
-        returns (uint256)
-    {
+    function withdraw(address to, uint256 underlyingAmount) public override returns (uint256) {
         uint256 startUnderlying = balanceOfUnderlying(address(this));
 
         // if we have enough, simply pay the user
@@ -102,10 +93,7 @@ contract Vault is
 
             if (postUnderlying >= underlyingAmount) {
                 // have enough to pay, stop withdraw
-                uint256 shares = underlyingAmount.fdiv(
-                    exchangeRate(),
-                    BASE_UNIT
-                );
+                uint256 shares = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
                 _burn(msg.sender, shares);
                 UNDERLYING.safeTransfer(to, underlyingAmount);
                 return shares;
@@ -118,13 +106,9 @@ contract Vault is
 
         // were not able to withdraw enough to pay the user. Simply pay what is
         // possible for now.
-        uint256 actualShares = postUnderlying.fdiv(
-            exchangeRate(),
-            BASE_UNIT
-        );
+        uint256 actualShares = postUnderlying.fdiv(exchangeRate(), BASE_UNIT);
         _burn(msg.sender, actualShares);
         UNDERLYING.safeTransfer(to, postUnderlying);
-        bufferUpKeep();
         return actualShares;
     }
 
@@ -155,12 +139,7 @@ contract Vault is
       @param shareAmount The amount of shares to redeem.
       @return value The underlying amount transferred to `to`.
     */
-    function redeem(address to, uint256 shareAmount)
-        public
-        virtual
-        override
-        returns (uint256 value)
-    {
+    function redeem(address to, uint256 shareAmount) public virtual override returns (uint256 value) {
         value = shareAmount.fmul(exchangeRate(), BASE_UNIT);
 
         _burn(msg.sender, shareAmount);
@@ -191,36 +170,52 @@ contract Vault is
                     Tracer Custom Mutable Functions
     //////////////////////////////////////////////////////////////*/
 
-    //Function to rebalance Strategy to approach buffer
-    function bufferUpKeep() public returns (bool) {
-        //calls strategy for buffer funds
-        //TODO: how to bulk rebalance strategies, is this possible?
-        // for (true in Strategies) {
-        //     strategy.rebalance();
-        //     return true;
-        // }
+    /**
+     * @notice Distributes funds to strategies
+     */
+    function distributeFunds() internal {
+        uint256 totalBalance = totalHoldings();
+
+        // keep track of total percentage to make sure we're summing up to 100%
+        uint256 sumPercentage;
+        for (uint8 i = 0; i < strategies.length; i++) {
+            uint256 percent = percentAllocations[i];
+            sumPercentage += percent;
+            require(sumPercentage <= BASE_UNIT, "PERCENTAGE_SUM_EXCEED_MAX");
+            uint256 newAmount = (totalBalance * percent) / BASE_UNIT;
+
+            if (newAmount > 0) {
+                UNDERLYING.safeTransfer(strategies[i], newAmount);
+            }
+        }
+    }
+
+    function updatePercentAllocations(uint256[] memory _newPercents) public onlyOwner {
+        delete percentAllocations;
+        require(_newPercents.length == strategies.length, "LEN_MISMATCH");
+        uint256 sumPercent = 0;
+        for (uint256 j = 0; j < _newPercents.length; j++) {
+            uint256 percent = _newPercents[j];
+            sumPercent += percent;
+            percentAllocations.push(percent);
+        }
+        require(sumPercent <= BASE_UNIT, "PERC_SUM_MAX");
     }
 
     /*///////////////////////////////////////////////////////////////
                     Tracer Custom View Functions
     //////////////////////////////////////////////////////////////*/
-    // The Vault contracts buffer balance should be above 0.05 of total
-    function buffer() public view returns (uint256) {
-        // todo
-        //return (balanceOf(address(this)) + balanceOf(address(strategyAddr))) * buffer_ceil;
-        return 0;
-    }
-
-    //safe vault balance should be above 0.025 of total
-    function safeVaultBalance() public view returns (uint256) {
-        // todo
-        return 0;
-        //return (buffer_floor * (balanceOf(address(this)) + balanceOf(address(strategy))));
-    }
 
     //Checks the strategys balance
-    function getValue(address strategy) external view returns (uint256) {
+    // todo how does this work alongside totalHoldings() -> decide on this interface
+    function getValue() external view returns (uint256) {
         // some logic to call strategy value
+        uint256 strategyValueSum;
+        for (uint256 i = 0; i < strategies.length; i++) {
+            uint256 value = IStrategy(strategies[i]).value();
+            strategyValueSum += value;
+        }
+        return strategyValueSum;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -236,8 +231,7 @@ contract Vault is
 
         if (cTokenSupply == 0) return BASE_UNIT;
 
-        return
-            UNDERLYING.balanceOf(address(this)).fdiv(cTokenSupply, BASE_UNIT);
+        return UNDERLYING.balanceOf(address(this)).fdiv(cTokenSupply, BASE_UNIT);
     }
 
     /** 
@@ -253,13 +247,7 @@ contract Vault is
       @param user The user to get the underlying balance of.
       @return balance The user's Vault balance in underlying tokens.
     */
-    function balanceOfUnderlying(address user)
-        public
-        view
-        virtual
-        override
-        returns (uint256 balance)
-    {
+    function balanceOfUnderlying(address user) public view virtual override returns (uint256 balance) {
         return balanceOf[user].fmul(exchangeRate(), BASE_UNIT);
     }
 
@@ -269,7 +257,6 @@ contract Vault is
     */
     function totalHoldings() public view virtual override returns (uint256) {
         return UNDERLYING.balanceOf(address(this));
-        //add logic to return current buffer balance
     }
 
     /** 
@@ -277,13 +264,7 @@ contract Vault is
       @param underlyingAmount the amount of underlying tokens to convert to shares.
       @return shareAmount the amount of shares corresponding to a given underlying amount
     */
-    function calculateShares(uint256 underlyingAmount)
-        public
-        view
-        virtual
-        override
-        returns (uint256 shareAmount)
-    {
+    function calculateShares(uint256 underlyingAmount) public view virtual override returns (uint256 shareAmount) {
         shareAmount = underlyingAmount.fdiv(exchangeRate(), BASE_UNIT);
     }
 
@@ -292,13 +273,7 @@ contract Vault is
       @param shareAmount the amount of shares to convert to an underlying amount.
       @return underlyingAmount the amount of underlying corresponding to a given amount of shares.
     */
-    function calculateUnderlying(uint256 shareAmount)
-        public
-        view
-        virtual
-        override
-        returns (uint256 underlyingAmount)
-    {
+    function calculateUnderlying(uint256 shareAmount) public view virtual override returns (uint256 underlyingAmount) {
         underlyingAmount = shareAmount.fmul(exchangeRate(), BASE_UNIT);
     }
 }
