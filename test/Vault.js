@@ -133,6 +133,77 @@ describe("Vault", async () => {
         })
     })
 
+    describe("mint", async () => {
+        beforeEach(async () => {
+            await underlying.approve(
+                vault.address,
+                ethers.utils.parseEther("1")
+            )
+            await vault.mint(ethers.utils.parseEther("1"), accounts[0].address)
+        })
+
+        it("distributes funds to the strategies", async () => {
+            // 95% of funds go to strategy 0
+            let strategyBalance = await underlying.balanceOf(
+                mockStrategy.address
+            )
+            assert.equal(
+                strategyBalance.toString(),
+                ethers.utils.parseEther("0.95").toString()
+            )
+            // 5% stay with the vault
+            let vaultBalance = await underlying.balanceOf(vault.address)
+            assert.equal(
+                vaultBalance.toString(),
+                ethers.utils.parseEther("0.05").toString()
+            )
+        })
+
+        it("issues correct vault shares", async () => {
+            // alter the exchange rate. 1 share = 2 units of collateral
+            await mockStrategy.setValue(ethers.utils.parseEther("1.95"))
+
+            //  approve from account 1
+            await underlying
+                .connect(accounts[1])
+                .approve(vault.address, ethers.utils.parseEther("2"))
+
+            // mint 1 share, this takes 2 units of collateral at the current ratio
+            let underlyingBalanceBefore = await underlying.balanceOf(
+                accounts[1].address
+            )
+
+            // mint should mint 1 share for 2 units of collateral
+            await vault
+                .connect(accounts[1])
+                .mint(ethers.utils.parseEther("1"), accounts[1].address)
+
+            let underlyingBalanceAfter = await underlying.balanceOf(
+                accounts[1].address
+            )
+
+            // should issue 1 shares to account 1
+            // should cost account 2 units of collateral
+            let vaultBalance = await vault.balanceOf(accounts[1].address)
+            assert.equal(
+                vaultBalance.toString(),
+                ethers.utils.parseEther("1").toString()
+            )
+            assert.equal(
+                underlyingBalanceBefore.sub(underlyingBalanceAfter).toString(),
+                ethers.utils.parseEther("2").toString()
+            )
+        })
+
+        it("reverts on insufficient approval", async () => {
+            await expect(
+                vault
+                    .connect(accounts[1])
+                    .mint(ethers.utils.parseEther("1"), accounts[1].address)
+            ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
+        })
+    })
+
     describe("updatePercentAllocations", async () => {
         it("reverts if the new percentages do not match the number of strategies", async () => {
             // default vault only has one strategy, cannot set two percentages

@@ -56,12 +56,8 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
       @param amount The amount of the underlying token to deposit.
       @return shares The shares in the vault credited to `to`
     */
-    function deposit(uint256 amount, address to) public override returns (uint256 shares) {
-        shares = amount.fdiv(exchangeRate(), BASE_UNIT);
-        _mint(to, shares);
-        UNDERLYING.safeTransferFrom(msg.sender, address(this), amount);
-        // distribute funds to the strategies
-        distributeFunds();
+    function deposit(uint256 amount, address to) public override returns (uint256) {
+        return _deposit(amount, to);
     }
 
     /**
@@ -71,12 +67,25 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
       @return amount The amount of the underlying tokens deposited from the mint call.
     */
     function mint(uint256 shares, address to) public override returns (uint256) {
-        // todo
+        // convert shares to underlying amount
+        uint256 amount = shares.fmul(exchangeRate(), BASE_UNIT);
+        return _deposit(amount, to);
+    }
+
+    /**
+     * @notice Internal deposit function
+     * @param amount of underlying tokens being deposited
+     * @param to the address receiving the shares for this deposit
+     */
+    function _deposit(uint256 amount, address to) internal returns (uint256) {
+        uint256 shares = amount.fdiv(exchangeRate(), BASE_UNIT);
+        // mint shares and pull in tokens
         _mint(to, shares);
-        // todo below shares need to be convereted to underlying tokens
-        UNDERLYING.safeTransferFrom(msg.sender, address(this), shares);
+        UNDERLYING.safeTransferFrom(msg.sender, address(this), amount);
+
         // distribute funds to the strategies
         distributeFunds();
+        return shares;
     }
 
     /**
@@ -175,7 +184,7 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
      * @notice Distributes funds to strategies
      */
     function distributeFunds() internal {
-        uint256 totalBalance = totalAssets();
+        uint256 totalBalance = UNDERLYING.balanceOf(address(this));
 
         // keep track of total percentage to make sure we're summing up to 100%
         uint256 sumPercentage;
