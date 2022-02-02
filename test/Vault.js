@@ -35,13 +35,13 @@ describe("Vault", async () => {
 
     describe("constructor", async () => {
         it("records correct state variables", async () => {
-            let _underlying = await vault.underlying()
+            let asset = await vault.asset()
             let _baseUnit = await vault.BASE_UNIT()
             let _owner = await vault.owner()
             let _strategies = await vault.strategies(0)
             let _percentAllocations = await vault.percentAllocations(0)
 
-            assert.equal(_underlying, underlying.address)
+            assert.equal(asset, underlying.address)
             assert.equal(_baseUnit.toString(), baseUnit.toString())
             assert.equal(_owner, accounts[0].address)
             assert.equal(_strategies, mockStrategy.address)
@@ -98,8 +98,8 @@ describe("Vault", async () => {
                 ethers.utils.parseEther("1")
             )
             await vault.deposit(
-                accounts[0].address,
-                ethers.utils.parseEther("1")
+                ethers.utils.parseEther("1"),
+                accounts[0].address
             )
         })
         it("distributes funds to the strategies", async () => {
@@ -128,7 +128,7 @@ describe("Vault", async () => {
             await expect(
                 vault
                     .connect(accounts[1])
-                    .deposit(accounts[1].address, ethers.utils.parseEther("1"))
+                    .deposit(ethers.utils.parseEther("1"), accounts[1].address)
             ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
         })
     })
@@ -182,9 +182,14 @@ describe("Vault", async () => {
                 ethers.utils.parseEther("1")
             )
             await vault.deposit(
-                accounts[0].address,
-                ethers.utils.parseEther("1")
+                ethers.utils.parseEther("1"),
+                accounts[0].address
             )
+
+            // mocking: the current setup indicates 0.95 of funds are allocated to the mock
+            // strategy. We need to tell the mock strategy to return this as its value for
+            // tests to work. 0.95 * 1 ETH = 0.95 ETH in the mock strategy
+            await mockStrategy.setValue(ethers.utils.parseEther("0.95"))
         })
 
         it("pays directly out of the vault if there is enough capital on hand", async () => {
@@ -192,8 +197,9 @@ describe("Vault", async () => {
             let vaultBalance = await underlying.balanceOf(vault.address)
             // withdraw all funds in the vault
             await vault.withdraw(
+                ethers.utils.parseEther("0.05"),
                 accounts[0].address,
-                ethers.utils.parseEther("0.05")
+                accounts[0].address
             )
             let endBalance = await underlying.balanceOf(accounts[0].address)
             assert.equal(
@@ -210,8 +216,9 @@ describe("Vault", async () => {
             )
             // withdraw all funds in the vault
             await vault.withdraw(
+                ethers.utils.parseEther("1"),
                 accounts[0].address,
-                ethers.utils.parseEther("1")
+                accounts[0].address
             )
             let endStrategyBalance = await underlying.balanceOf(
                 mockStrategy.address
@@ -252,8 +259,9 @@ describe("Vault", async () => {
             await mockStrategy.setValue(ethers.utils.parseEther("0.95"))
 
             await vault.withdraw(
+                ethers.utils.parseEther("1"),
                 accounts[0].address,
-                ethers.utils.parseEther("1")
+                accounts[0].address
             )
             let endBalance = await underlying.balanceOf(accounts[0].address)
             let endShares = await vault.balanceOf(accounts[0].address)
@@ -270,11 +278,12 @@ describe("Vault", async () => {
             )
         })
 
-        it.only("reverts if the user does not have enough shares", async () => {
+        it("reverts if the user does not have enough shares", async () => {
             await expect(
                 vault.withdraw(
+                    ethers.utils.parseEther("2"),
                     accounts[0].address,
-                    ethers.utils.parseEther("2")
+                    accounts[0].address
                 )
             ).to.be.revertedWith("INSUFFICIENT_SHARES")
         })
