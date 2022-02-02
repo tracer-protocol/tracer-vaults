@@ -148,10 +148,10 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
         uint256 shares,
         address from,
         address to
-    ) public override returns(uint) {
+    ) public override returns (uint256) {
         // todo
         require(this.balanceOf(msg.sender) >= shares, "INSUFFICIENT_SHARES");
-        uint value = shares.fmul(exchangeRate(), BASE_UNIT);
+        uint256 value = shares.fmul(exchangeRate(), BASE_UNIT);
 
         _burn(msg.sender, shares);
 
