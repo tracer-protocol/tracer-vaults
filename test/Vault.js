@@ -194,7 +194,6 @@ describe("Vault", async () => {
 
         it("pays directly out of the vault if there is enough capital on hand", async () => {
             let startBalance = await underlying.balanceOf(accounts[0].address)
-            let vaultBalance = await underlying.balanceOf(vault.address)
             // withdraw all funds in the vault
             await vault.withdraw(
                 ethers.utils.parseEther("0.05"),
@@ -286,6 +285,50 @@ describe("Vault", async () => {
                     accounts[0].address
                 )
             ).to.be.revertedWith("INSUFFICIENT_SHARES")
+        })
+    })
+
+    describe("redeem", async () => {
+        beforeEach(async () => {
+            await underlying.approve(
+                vault.address,
+                ethers.utils.parseEther("1")
+            )
+            await vault.deposit(
+                ethers.utils.parseEther("1"),
+                accounts[0].address
+            )
+
+            // mocking: the current setup indicates 0.95 of funds are allocated to the mock
+            // strategy. We need to tell the mock strategy to return this as its value for
+            // tests to work. 0.95 * 1 ETH = 0.95 ETH in the mock strategy
+            await mockStrategy.setValue(ethers.utils.parseEther("0.95"))
+        })
+
+        it("reverts if the user has insufficient shares", async () => {
+            await expect(
+                vault.redeem(
+                    ethers.utils.parseEther("2"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("INSUFFICIENT_SHARES")
+        })
+
+        it("withdraws the correct amount of underlying given the users shares", async () => {
+            // note this test functions identically to withdraw since the ratio of shares: assets is 1:1
+            let startBalance = await underlying.balanceOf(accounts[0].address)
+            // withdraw all funds in the vault
+            await vault.redeem(
+                ethers.utils.parseEther("0.05"),
+                accounts[0].address,
+                accounts[0].address
+            )
+            let endBalance = await underlying.balanceOf(accounts[0].address)
+            assert.equal(
+                endBalance.sub(startBalance).toString(),
+                ethers.utils.parseEther("0.05").toString()
+            )
         })
     })
 })

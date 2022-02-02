@@ -91,11 +91,41 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
         address to,
         address from
     ) public override returns (uint256) {
-        // don't trigger if the user is withdrawing more shares than they have
-        // todo it feels this can be highly optimised
+        // todo any public validation goes here
+        return _withdraw(amount, to, from);
+    }
+
+    /**
+      @notice Redeem a specific amount of shares for underlying tokens.
+      @param from The address to burn shares from corresponding to the redemption.
+      @param to The address to receive underlying corresponding to the redemption.
+      @param shares The amount of shares to redeem.
+      @return value The underlying amount transferred to `to`.
+    */
+    function redeem(
+        uint256 shares,
+        address from,
+        address to
+    ) public override returns (uint256) {
+        // todo
+        require(this.balanceOf(msg.sender) >= shares, "INSUFFICIENT_SHARES");
+        uint256 amount = shares.fmul(exchangeRate(), BASE_UNIT);
+        return _withdraw(amount, from, to);
+    }
+
+    /**
+     * @notice Internal withdraw function
+     * @param amount of underlying tokens being withdraw
+     * @param from the address sending the withdraw request
+     * @param to the address receiving the withdrawn funds
+     */
+    function _withdraw(
+        uint256 amount,
+        address from,
+        address to
+    ) internal returns (uint256) {
         uint256 shares = amount.fdiv(exchangeRate(), BASE_UNIT);
         require(this.balanceOf(msg.sender) >= shares, "INSUFFICIENT_SHARES");
-
         // check how much underlying we have "on hand"
         uint256 startUnderlying = UNDERLYING.balanceOf(address(this));
 
@@ -135,27 +165,6 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
         _burn(msg.sender, actualShares);
         UNDERLYING.safeTransfer(to, postUnderlying);
         return actualShares;
-    }
-
-    /**
-      @notice Redeem a specific amount of shares for underlying tokens.
-      @param from The address to burn shares from corresponding to the redemption.
-      @param to The address to receive underlying corresponding to the redemption.
-      @param shares The amount of shares to redeem.
-      @return value The underlying amount transferred to `to`.
-    */
-    function redeem(
-        uint256 shares,
-        address from,
-        address to
-    ) public override returns (uint256) {
-        // todo
-        require(this.balanceOf(msg.sender) >= shares, "INSUFFICIENT_SHARES");
-        uint256 value = shares.fmul(exchangeRate(), BASE_UNIT);
-
-        _burn(msg.sender, shares);
-
-        UNDERLYING.safeTransfer(to, value);
     }
 
     /*///////////////////////////////////////////////////////////////
