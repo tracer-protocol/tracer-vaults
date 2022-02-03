@@ -3,7 +3,10 @@ pragma solidity >=0.8.0;
 //This contract serves as an alternative import for ERC4626
 import "@rari-capital/solmate/src/tokens/ERC20.sol";
 import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
-import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
+import "./FixedPointMathLib.sol";
+
+// Importing from local utils to avoid solmate import errors
+// import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
 
 /// @notice Minimal ERC4646 tokenized vault implementation.
 /// @author Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/mixins/ERC4626.sol)
@@ -39,7 +42,7 @@ abstract contract ERC4626 is ERC20 {
 
     function deposit(uint256 amount, address to) public virtual returns (uint256 shares) {
         // Check for rounding error since we round down in previewDeposit.
-        // require((shares = previewDeposit(amount)) != 0, "ZERO_SHARES");
+        require((shares = previewDeposit(amount)) != 0, "ZERO_SHARES");
 
         _mint(to, shares);
 
@@ -51,7 +54,7 @@ abstract contract ERC4626 is ERC20 {
     }
 
     function mint(uint256 shares, address to) public virtual returns (uint256 amount) {
-        _mint(to, amount); // No need to check for rounding error, previewMint rounds up.
+        _mint(to, amount = previewMint(shares)); // No need to check for rounding error, previewMint rounds up.
 
         emit Deposit(msg.sender, to, amount);
 
@@ -65,11 +68,13 @@ abstract contract ERC4626 is ERC20 {
         address to,
         address from
     ) public virtual returns (uint256 shares) {
+        shares = previewWithdraw(amount); // No need to check for rounding error, previewWithdraw rounds up.
+
         uint256 allowed = allowance[from][msg.sender]; // Saves gas for limited approvals.
 
         if (msg.sender != from && allowed != type(uint256).max) allowance[from][msg.sender] = allowed - shares;
 
-        _burn(from, shares); // No need to check for rounding error, previewWithdraw rounds up.
+        _burn(from, shares);
 
         emit Withdraw(from, to, amount);
 
@@ -88,7 +93,7 @@ abstract contract ERC4626 is ERC20 {
         if (msg.sender != from && allowed != type(uint256).max) allowance[from][msg.sender] = allowed - shares;
 
         // Check for rounding error since we round down in previewRedeem.
-        require((amount) != 0, "ZERO_ASSETS");
+        require((amount = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
         _burn(from, shares);
 
@@ -105,37 +110,37 @@ abstract contract ERC4626 is ERC20 {
 
     function totalAssets() public view virtual returns (uint256);
 
-    // function assetsOf(address user) public view virtual returns (uint256) {
-    //     return previewRedeem(balanceOf[user]);
-    // }
+    function assetsOf(address user) public view virtual returns (uint256) {
+        return previewRedeem(balanceOf[user]);
+    }
 
-    // function assetsPerShare() public view virtual returns (uint256) {
-    //     return previewRedeem(10**decimals);
-    // }
+    function assetsPerShare() public view virtual returns (uint256) {
+        return previewRedeem(10**decimals);
+    }
 
-    // function previewDeposit(uint256 amount) public view virtual returns (uint256 shares) {
-    //     uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
+    function previewDeposit(uint256 amount) public view virtual returns (uint256 shares) {
+        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
 
-    //     return supply == 0 ? amount : amount.mulDivDown(totalSupply, totalAssets());
-    // }
+        return supply == 0 ? amount : amount.mulDivDown(totalSupply, totalAssets());
+    }
 
-    // function previewMint(uint256 shares) public view virtual returns (uint256 amount) {
-    //     uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
+    function previewMint(uint256 shares) public view virtual returns (uint256 amount) {
+        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
 
-    //     return supply == 0 ? shares : shares.mulDivUp(totalAssets(), totalSupply);
-    // }
+        return supply == 0 ? shares : shares.mulDivUp(totalAssets(), totalSupply);
+    }
 
-    // function previewWithdraw(uint256 amount) public view virtual returns (uint256 shares) {
-    //     uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
+    function previewWithdraw(uint256 amount) public view virtual returns (uint256 shares) {
+        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
 
-    //     return supply == 0 ? amount : amount.mulDivUp(totalSupply, totalAssets());
-    // }
+        return supply == 0 ? amount : amount.mulDivUp(totalSupply, totalAssets());
+    }
 
-    // function previewRedeem(uint256 shares) public view virtual returns (uint256 amount) {
-    //     uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
+    function previewRedeem(uint256 shares) public view virtual returns (uint256 amount) {
+        uint256 supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
 
-    //     return supply == 0 ? shares : shares.mulDivDown(totalAssets(), totalSupply);
-    // }
+        return supply == 0 ? shares : shares.mulDivDown(totalAssets(), totalSupply);
+    }
 
     /*///////////////////////////////////////////////////////////////
                          INTERNAL HOOKS LOGIC

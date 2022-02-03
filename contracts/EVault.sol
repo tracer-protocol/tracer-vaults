@@ -4,14 +4,14 @@ pragma solidity ^0.8.0;
 //todo fix import paths to solmate
 import "@rari-capital/solmate/src/tokens/ERC20.sol";
 import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
-import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
+// import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
 import "@rari-capital/solmate/src/auth/Auth.sol";
-// import "./interfaces/IERC4626.sol";
-import "./utils/ERC4626.sol";
-
-// import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {Harvester} from "./Harvester.sol";
+//important! Importing this library from solmate will cause the contract to fail compile
+import "./utils/ERC4626.sol";
+import "./utils/FixedPointMathLib.sol";
 
+// An ERC4626 compliant vault that interacts with a strategy address and Harvester contract
 abstract contract EVault is ERC4626, Harvester, Auth {
     using SafeTransferLib for ERC20;
     //lets track balances for now
