@@ -120,6 +120,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
      * @param asset the asset being returned
      */
     function returnAsset(uint256 amount, address asset) public onlyWhitelisted(asset) {
+        // todo: Need to think about recording PnL here
         // update accounting
         uint256 _senderDebt = debts[msg.sender][asset];
         uint256 _totalDebt = totalDebt[asset];
@@ -127,11 +128,15 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         // validate if debt is paid off for msg.sender
         if (amount >= _senderDebt) {
             debts[msg.sender][asset] = 0;
+        } else {
+            debts[msg.sender][asset] -= amount;
         }
 
         // validate if debt is paid off for the entire pool
         if (amount >= _totalDebt) {
             totalDebt[asset] = 0;
+        } else {
+            totalDebt[asset] -= amount;
         }
 
         IERC20(asset).transferFrom(msg.sender, address(this), amount);
