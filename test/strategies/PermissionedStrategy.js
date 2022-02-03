@@ -153,22 +153,23 @@ describe("PermissionedStrategy", async () => {
     })
 
     describe("returnAsset", async () => {
-        beforeEach(async() => {
+        beforeEach(async () => {
             await vaultAsset.transfer(
                 strategy.address,
                 ethers.utils.parseEther("5")
             )
 
-            await vaultAsset.connect(accounts[1]).approve(strategy.address, ethers.utils.parseEther("100"))
+            await vaultAsset
+                .connect(accounts[1])
+                .approve(strategy.address, ethers.utils.parseEther("100"))
 
             // create debt for account 1
             await strategy
-            .connect(accounts[1])
-            .pullAsset(ethers.utils.parseEther("2"), vaultAsset.address)
-
+                .connect(accounts[1])
+                .pullAsset(ethers.utils.parseEther("2"), vaultAsset.address)
         })
 
-        it("updates returners debt and total debt", async() => {
+        it("updates returners debt and total debt", async () => {
             let totalDebtBefore = await strategy.totalDebt(vaultAsset.address)
             let pullerDebtBefore = await strategy.debts(
                 accounts[1].address,
@@ -193,11 +194,18 @@ describe("PermissionedStrategy", async () => {
             )
         })
 
-        it("reverts if the returner has insufficient assets", async() => {
-            await expect(strategy.connect(accounts[1]).returnAsset(ethers.utils.parseEther("50"), vaultAsset.address)).to.be.revertedWith("ERC20: transfer amount exceeds balance")
+        it("reverts if the returner has insufficient assets", async () => {
+            await expect(
+                strategy
+                    .connect(accounts[1])
+                    .returnAsset(
+                        ethers.utils.parseEther("50"),
+                        vaultAsset.address
+                    )
+            ).to.be.revertedWith("ERC20: transfer amount exceeds balance")
         })
 
-        it("caps debt amounts at 0", async() => {
+        it("caps debt amounts at 0", async () => {
             // return 10 tokens when the outstanding debt is only 2
             await strategy
                 .connect(accounts[1])
