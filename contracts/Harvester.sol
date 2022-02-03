@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.0;
 //todo fix import paths to solmate
-import {SafeTransferLib, ERC20} from "solmate/utils/SafeTransferLib.sol";
+import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
 
 contract Harvester {
     using SafeTransferLib for ERC20;

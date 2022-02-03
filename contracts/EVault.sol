@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.0;
 
 //todo fix import paths to solmate
-import {ERC20} from "solmate/tokens/ERC20.sol";
-import {ERC4626} from "solmate/mixins/ERC4626.sol";
+import "@rari-capital/solmate/src/tokens/ERC20.sol";
+import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
+import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
+import "@rari-capital/solmate/src/auth/Auth.sol";
+// import "./interfaces/IERC4626.sol";
+import "./utils/ERC4626.sol";
+
+// import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {Harvester} from "./Harvester.sol";
-import {Auth} from "solmate/auth/Auth.sol";
-import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 abstract contract EVault is ERC4626, Harvester, Auth {
     using SafeTransferLib for ERC20;
@@ -35,7 +39,7 @@ abstract contract EVault is ERC4626, Harvester, Auth {
     }
 
     //sends funds from the vault to the strategy address
-    function afterDeposit(uint256 amount) internal override {
+    function afterDeposit(uint256 amount) internal virtual override {
         //todo logic to distribute funds to Strategy (for bot)
         UNDERLYING.safeTransfer(STRATEGY, amount);
         //increment balance of sender
@@ -43,7 +47,7 @@ abstract contract EVault is ERC4626, Harvester, Auth {
     }
 
     //Claims rewards and sends funds from the Harvester to Vault
-    function beforeWithdraw(uint256 amount) internal override {
+    function beforeWithdraw(uint256 amount) internal virtual override {
         claimRewards();
         balances[msg.sender] -= amount;
         if (UNDERLYING.balanceOf(address(this)) < amount) _transferAll(UNDERLYING, address(this));
