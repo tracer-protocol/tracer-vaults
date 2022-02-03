@@ -35,11 +35,12 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         address _vault
     ) {
         // whitelist default assets
-        setAssetWhitelist(poolShortToken, true);
-        setAssetWhitelist(vaultAsset, true);
+        assetWhitelist[poolShortToken] = true;
+        assetWhitelist[vaultAsset] = true;
 
         // make contract deployer the default admin
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(WHITELISTER, msg.sender);
 
         // cache state
         POOL = pool;
@@ -118,7 +119,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
      * @param amount the amount of debt being repaid
      * @param asset the asset being returned
      */
-    function returnCollateral(uint256 amount, address asset) public onlyWhitelisted(asset) {
+    function returnAsset(uint256 amount, address asset) public onlyWhitelisted(asset) {
         // update accounting
         uint256 _senderDebt = debts[msg.sender][asset];
         uint256 _totalDebt = totalDebt[asset];
@@ -164,8 +165,8 @@ contract PermissionedStrategy is IStrategy, AccessControl {
      * @notice modifier that checks both the sending address and the asset
      */
     modifier onlyWhitelisted(address asset) {
-        require(whitelist[msg.sender], "SENDER NOT WL");
-        require(assetWhitelist[asset], "ASSET NOT WL");
+        require(whitelist[msg.sender], "SENDER_NOT_WL");
+        require(assetWhitelist[asset], "ASSET_NOT_WL");
         _;
     }
 }

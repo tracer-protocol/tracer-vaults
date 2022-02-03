@@ -250,8 +250,10 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     }
 
     /** 
-      @notice Calculates the total amount of underlying tokens the Vault holds.
-      @return totalUnderlyingHeld The total amount of underlying tokens the Vault and
+      @notice Calculates the total amount of underlying tokens the Vault holds including in strategies.
+      * @dev CAUTION. Do not confuse this with the amount of underlying tokens being held in the vault. This
+      * function takes into account the balance of strategies as well.
+      @return totalUnderlyingHeld The total amount of underlying tokens the vault and
       * its strategies are holding.
     */
     function totalAssets() public view virtual override returns (uint256) {
