@@ -84,7 +84,7 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
         UNDERLYING.safeTransferFrom(msg.sender, address(this), amount);
 
         // distribute funds to the strategies
-        distributeFunds();
+        distributeFunds(amount);
         return shares;
     }
 
@@ -183,8 +183,8 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     /**
      * @notice Distributes funds to strategies
      */
-    function distributeFunds() internal {
-        uint256 totalBalance = UNDERLYING.balanceOf(address(this));
+    function distributeFunds(uint256 _amount) internal {
+        require(_amount > 0 && _amount <= UNDERLYING.balanceOf(address(this)), "BALANCE_OUT_OF_RANGE");
 
         // keep track of total percentage to make sure we're summing up to 100%
         uint256 sumPercentage;
@@ -192,10 +192,10 @@ contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
             uint256 percent = percentAllocations[i];
             sumPercentage += percent;
             require(sumPercentage <= BASE_UNIT, "PERCENTAGE_SUM_EXCEED_MAX");
-            uint256 newAmount = (totalBalance * percent) / BASE_UNIT;
+            uint256 transferAmount = (_amount * percent) / BASE_UNIT;
 
-            if (newAmount > 0) {
-                UNDERLYING.safeTransfer(strategies[i], newAmount);
+            if (transferAmount > 0) {
+                UNDERLYING.safeTransfer(strategies[i], transferAmount);
             }
         }
     }
