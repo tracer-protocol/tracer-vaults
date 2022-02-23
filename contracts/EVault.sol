@@ -8,9 +8,8 @@ import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
 import "./utils/ERC4626.sol";
 import "./utils/FixedPointMathLib.sol";
 
-
-// An ERC4626 compliant vault that interacts with a strategy address 
-// BUFFER is the minimun amount of tokens that can be stored in the vault and should 
+// An ERC4626 compliant vault that interacts with a strategy address
+// BUFFER is the minimun amount of tokens that can be stored in the vault and should
 // be compared with bufBal to determine if the vault neeed topup
 // TOP_UP indicates if funds are needed from bot to facilitate a large withdrawal
 abstract contract EVault is ERC4626 {
@@ -27,7 +26,7 @@ abstract contract EVault is ERC4626 {
     uint256 public BUFFER;
     //top up amount
     uint256 public TOP_UP;
-    
+
     constructor(ERC20 underlying) ERC4626(underlying, "EVault", "EVLT") {
         UNDERLYING = ERC20(underlying);
         owner = payable(msg.sender);
@@ -49,15 +48,18 @@ abstract contract EVault is ERC4626 {
         STRATEGY = strategy;
         return true;
     }
+
     //sets the buffer amount to leave in vault
     //Bot queries vault Balance and compares to buffer amount
     function setBuffer(uint256 buffer) internal onlyOwner returns (bool) {
         BUFFER = buffer;
         return true;
     }
+
     function bufBalance() public view returns (uint256) {
         return UNDERLYING.balanceOf(address(this));
     }
+
     //sends funds from the vault to the strategy address
     function afterDeposit(uint256 amount) internal virtual override {
         //todo logic to distribute funds to Strategy (for bot)
@@ -68,7 +70,7 @@ abstract contract EVault is ERC4626 {
 
     //Claims rewards and sends funds from the Harvester to Vault
     function beforeWithdraw(uint256 amount) internal virtual override {
-        if(UNDERLYING.balanceOf(address(this)) >= amount){
+        if (UNDERLYING.balanceOf(address(this)) >= amount) {
             UNDERLYING.safeTransfer(STRATEGY, amount);
             //increment balance of sender
             balances[msg.sender] += amount;
@@ -82,6 +84,7 @@ abstract contract EVault is ERC4626 {
         previewWithdraw(amount);
         balances[msg.sender] -= amount;
     }
+
     function isOwner() public view returns (bool) {
         return msg.sender == owner;
     }
