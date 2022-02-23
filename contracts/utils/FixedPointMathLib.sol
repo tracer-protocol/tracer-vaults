@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.0;
 
-/// @notice Important! This contract is in Utils as solmate library fails
 /// @notice Arithmetic library with operations for fixed-point numbers.
 /// @author Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/utils/FixedPointMathLib.sol)
 /// @author Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
@@ -66,7 +65,8 @@ library FixedPointMathLib {
             }
 
             // First, divide z - 1 by the denominator and add 1.
-            // Then multiply it by 0 if z is zero, or 1 otherwise.
+            // We allow z - 1 to underflow if z is 0, because we multiply the
+            // end result by 0 if z is zero, ensuring we return 0 if z is zero.
             z := mul(iszero(iszero(z)), add(div(sub(z, 1), denominator), 1))
         }
     }
@@ -74,7 +74,7 @@ library FixedPointMathLib {
     function rpow(
         uint256 x,
         uint256 n,
-        uint256 denominator
+        uint256 scalar
     ) internal pure returns (uint256 z) {
         assembly {
             switch x
@@ -82,7 +82,7 @@ library FixedPointMathLib {
                 switch n
                 case 0 {
                     // 0 ** 0 = 1
-                    z := denominator
+                    z := scalar
                 }
                 default {
                     // 0 ** n = 0
@@ -92,8 +92,8 @@ library FixedPointMathLib {
             default {
                 switch mod(n, 2)
                 case 0 {
-                    // If n is even, store denominator in z for now.
-                    z := denominator
+                    // If n is even, store scalar in z for now.
+                    z := scalar
                 }
                 default {
                     // If n is odd, store x in z for now.
@@ -101,7 +101,7 @@ library FixedPointMathLib {
                 }
 
                 // Shifting right by 1 is like dividing by 2.
-                let half := shr(1, denominator)
+                let half := shr(1, scalar)
 
                 for {
                     // Shift n right by 1 before looping to halve it.
@@ -128,7 +128,7 @@ library FixedPointMathLib {
                     }
 
                     // Set x to scaled xxRound.
-                    x := div(xxRound, denominator)
+                    x := div(xxRound, scalar)
 
                     // If n is even:
                     if mod(n, 2) {
@@ -152,7 +152,7 @@ library FixedPointMathLib {
                         }
 
                         // Return properly scaled zxRound.
-                        z := div(zxRound, denominator)
+                        z := div(zxRound, scalar)
                     }
                 }
             }
