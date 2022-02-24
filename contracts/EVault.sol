@@ -12,7 +12,7 @@ import "./utils/FixedPointMathLib.sol";
 // BUFFER is the minimun amount of tokens that can be stored in the vault and should
 // be compared with bufBal to determine if the vault neeed topup
 // TOP_UP indicates if funds are needed from bot to facilitate a large withdrawal
-abstract contract EVault is ERC4626 {
+ contract EVault is ERC4626 {
     using SafeTransferLib for ERC20;
     //lets track balances for now
     mapping(address => uint256) balances;
