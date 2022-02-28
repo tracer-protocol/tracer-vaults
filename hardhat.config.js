@@ -22,15 +22,13 @@ module.exports = {
     solidity: "0.8.0",
     networks: {
 		rinkeby: {
-      url: "",
-      accounts: [""],
+      url: "alchemy",
+      accounts: ["key"],
       gas: 2100000,
       gasPrice: 8000000000
 		}
     },
     etherscan: {
-        apiKey: {
-          arbitrumTestnet: ' '
-        }
+        apiKey: "api_key"
 }
 };
