@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.0;
 
-//todo fix import paths to solmate
 import "@rari-capital/solmate/src/tokens/ERC20.sol";
 import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
 //important! Importing this library from solmate will cause the contract to fail compile
 import "./utils/ERC4626.sol";
 import "./utils/FixedPointMathLib.sol";
+
 
 // An ERC4626 compliant vault that interacts with a strategy address
 // BUFFER is the minimun amount of tokens that can be stored in the vault and should
@@ -22,9 +22,9 @@ import "./utils/FixedPointMathLib.sol";
     ERC20 public immutable UNDERLYING;
     //the strategy address
     address public STRATEGY;
-    //the buffer amount
+    //the buffer amount (indicates to bot the minimun amount of tokens that can be stored in the vault)
     uint256 public BUFFER;
-    //top up amount
+    //top up amount (adjusted on large withdrawals)
     uint256 public TOP_UP;
 
     constructor(ERC20 underlying) ERC4626(underlying, "EVault", "EVLT") {
@@ -44,14 +44,14 @@ import "./utils/FixedPointMathLib.sol";
 
     //sets the strategy address to send funds
     //Funds get sent to strategy address
-    function setStrategy(address strategy) internal onlyOwner returns (bool) {
+    function setStrategy(address strategy) public onlyOwner returns (bool) {
         STRATEGY = strategy;
         return true;
     }
 
     //sets the buffer amount to leave in vault
     //Bot queries vault Balance and compares to buffer amount
-    function setBuffer(uint256 buffer) internal onlyOwner returns (bool) {
+    function setBuffer(uint256 buffer) public onlyOwner returns (bool) {
         BUFFER = buffer;
         return true;
     }
