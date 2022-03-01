@@ -37,7 +37,6 @@ describe("VaultV1", async () => {
             let asset = await vault.asset()
             assert.equal(asset, underlying.address)
         })
-
     })
 
     describe("deposit", async () => {
@@ -113,7 +112,7 @@ describe("VaultV1", async () => {
         it("issues correct vault shares", async () => {
             // alter the exchange rate. 1 share = 2 units of collateral
             await mockStrategy.setValue(ethers.utils.parseEther("2"))
-            
+
             // vault state: 2 units of underlying and 1 outstanding share
 
             // approve from account 1
@@ -173,7 +172,7 @@ describe("VaultV1", async () => {
             // tests to work. 0.95 * 1 ETH = 0.95 ETH in the mock strategy
             await mockStrategy.setValue(ethers.utils.parseEther("1"))
         })
-        
+
         // todo: refactor for v1 vault
         it.skip("pays directly out of the vault if there is enough capital on hand", async () => {
             let startBalance = await underlying.balanceOf(accounts[0].address)
