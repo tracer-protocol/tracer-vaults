@@ -23,9 +23,7 @@ describe("VaultV1", async () => {
         }
 
         mockStrategy = await strategyFactory.deploy()
-        vault = await vaultFactory.deploy(
-            underlying.address
-        )
+        vault = await vaultFactory.deploy(underlying.address)
 
         // init the strategy
         vault.setStrategy(mockStrategy.address)
@@ -39,7 +37,6 @@ describe("VaultV1", async () => {
             let asset = await vault.asset()
             assert.equal(asset, underlying.address)
         })
-
     })
 
     describe("deposit", async () => {
@@ -172,7 +169,7 @@ describe("VaultV1", async () => {
             // tests to work. 0.95 * 1 ETH = 0.95 ETH in the mock strategy
             await mockStrategy.setValue(ethers.utils.parseEther("1"))
         })
-        
+
         // todo: refactor for v1 vault
         it.skip("pays directly out of the vault if there is enough capital on hand", async () => {
             let startBalance = await underlying.balanceOf(accounts[0].address)
