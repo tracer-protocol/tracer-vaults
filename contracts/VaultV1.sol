@@ -4,10 +4,12 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@rari-capital/solmate/src/tokens/ERC20.sol";
 import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
+import "./interfaces/IStrategy.sol";
 
 //important! Importing ERRC4626 from solmate will cause the contract to fail compile
 import "./utils/ERC4626.sol";
 import "./utils/FixedPointMathLib.sol";
+import "hardhat/console.sol";
 
 // An ERC4626 compliant vault that interacts with a strategy address
 // BUFFER is the minimun amount of tokens that can be stored in the vault and should
@@ -19,26 +21,26 @@ contract VaultV1 is ERC4626, Ownable {
     //the underlying token the vault accepts
     ERC20 public immutable UNDERLYING;
     //the strategy address
-    address public STRATEGY;
+    IStrategy public STRATEGY;
     //the buffer amount (indicates to bot the minimun amount of tokens that can be stored in the vault)
     uint256 public BUFFER;
     //top up amount (adjusted on large withdrawals)
     uint256 public TOP_UP;
 
-    constructor(ERC20 underlying) ERC4626(underlying, "EVault", "EVLT") {
+    constructor(ERC20 underlying, address strategy) ERC4626(underlying, "TracerVault", "TVLT") {
         UNDERLYING = ERC20(underlying);
-        // STRATEGY = address(0x0);
+        STRATEGY = IStrategy(strategy);
     }
 
     function totalAssets() public view override returns (uint256) {
         // account for balances outstanding in bot/strategy, check balances
-        return UNDERLYING.balanceOf(address(this)) + UNDERLYING.balanceOf(address(STRATEGY));
+        return UNDERLYING.balanceOf(address(this)) + STRATEGY.value();
     }
 
     //sets the strategy address to send funds
     //Funds get sent to strategy address(controlled by bot)
     function setStrategy(address strategy) public onlyOwner returns (bool) {
-        STRATEGY = strategy;
+        STRATEGY = IStrategy(strategy);
         return true;
     }
 
@@ -57,13 +59,13 @@ contract VaultV1 is ERC4626, Ownable {
     //sends funds from the vault to the strategy address
     function afterDeposit(uint256 amount) internal virtual override {
         //todo logic to distribute funds to Strategy (for bot)
-        UNDERLYING.safeTransfer(STRATEGY, amount);
+        UNDERLYING.safeTransfer(address(STRATEGY), amount);
     }
 
     //Claims rewards and sends funds from the Harvester to Vault
     function beforeWithdraw(uint256 amount) internal virtual override {
         if (UNDERLYING.balanceOf(address(this)) >= amount) {
-            UNDERLYING.safeTransfer(STRATEGY, amount);
+            UNDERLYING.safeTransfer(address(STRATEGY), amount);
             TOP_UP = 0;
         } else {
             //todo throw error
