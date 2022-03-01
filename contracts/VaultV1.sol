@@ -61,16 +61,22 @@ contract VaultV1 is ERC4626, Ownable {
         UNDERLYING.safeTransfer(address(STRATEGY), amount);
     }
 
-    //Claims rewards and sends funds from the Harvester to Vault
+    /**
+    * @notice called before the actual withdraw is executed as part of the vault
+    * @dev pulls as many funds from the strategy as possible.
+    */
     function beforeWithdraw(uint256 amount) internal virtual override {
-        if (UNDERLYING.balanceOf(address(this)) >= amount) {
-            UNDERLYING.safeTransfer(address(STRATEGY), amount);
-            TOP_UP = 0;
-        } else {
-            //todo throw error
-            TOP_UP = amount - UNDERLYING.balanceOf(address(this));
+        // check how much underlying we have "on hand"
+        uint256 startUnderlying = UNDERLYING.balanceOf(address(this));
+
+        if (startUnderlying < amount && STRATEGY.withdrawable() >= amount) {
+            // not enough on hand but enough in the strategy. withdraw
+            STRATEGY.withdraw(amount);
+        } else if (startUnderlying < amount) {
+            // not enough on hand. Not enough in strategy. Update funds required from bot
+            STRATEGY.withdraw(amount);
+            uint256 newUnderlying = UNDERLYING.balanceOf(address(this));
+            TOP_UP = amount - newUnderlying;
         }
-        require(UNDERLYING.balanceOf(address(this)) >= amount, "Insufficient funds in vault");
-        previewWithdraw(amount);
     }
 }
