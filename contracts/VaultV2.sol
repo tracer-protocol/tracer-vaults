@@ -9,7 +9,7 @@ import "./interfaces/IStrategy.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
-contract Vault is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
+contract VaultV2 is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
