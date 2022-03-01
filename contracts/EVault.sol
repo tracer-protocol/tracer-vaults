@@ -9,12 +9,11 @@ import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
 import "./utils/ERC4626.sol";
 import "./utils/FixedPointMathLib.sol";
 
-
 // An ERC4626 compliant vault that interacts with a strategy address
 // BUFFER is the minimun amount of tokens that can be stored in the vault and should
 // be compared with bufBal to determine if the vault neeed topup
 // TOP_UP indicates if funds are needed from bot to facilitate a large withdrawal
- contract EVault is ERC4626, Ownable {
+contract EVault is ERC4626, Ownable {
     using SafeTransferLib for ERC20;
 
     //the underlying token the vault accepts
@@ -49,6 +48,7 @@ import "./utils/FixedPointMathLib.sol";
         BUFFER = buffer;
         return true;
     }
+
     //returns current balance of underlying in vault (represents buffer amount)
     function bufBalance() public view returns (uint256) {
         return UNDERLYING.balanceOf(address(this));
@@ -72,5 +72,4 @@ import "./utils/FixedPointMathLib.sol";
         require(UNDERLYING.balanceOf(address(this)) >= amount, "Insufficient funds in vault");
         previewWithdraw(amount);
     }
-
 }

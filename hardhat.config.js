@@ -1,6 +1,6 @@
 require("@nomiclabs/hardhat-waffle")
 require("@nomiclabs/hardhat-solhint")
-require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-etherscan")
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -20,15 +20,15 @@ task("accounts", "Prints the list of accounts", async () => {
  */
 module.exports = {
     solidity: "0.8.0",
-    networks: {
-		rinkeby: {
-      url: "alchemy",
-      accounts: ["key"],
-      gas: 2100000,
-      gasPrice: 8000000000
-		}
-    },
-    etherscan: {
-        apiKey: "api_key"
+    // networks: {
+    //     rinkeby: {
+    //         url: "alchemy",
+    //         accounts: ["key"],
+    //         gas: 2100000,
+    //         gasPrice: 8000000000,
+    //     },
+    // },
+    // etherscan: {
+    //     apiKey: "api_key",
+    // },
 }
-};
