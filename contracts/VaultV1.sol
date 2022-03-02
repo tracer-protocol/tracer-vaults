@@ -25,6 +25,8 @@ contract VaultV1 is ERC4626, Ownable {
     uint256 public BUFFER;
     //top up amount (adjusted on large withdrawals)
     uint256 public TOP_UP;
+    //Locks vault from withdrawals false = unlocked, true = locked
+    bool public LOCKED;
 
     constructor(ERC20 underlying, address strategy) ERC4626(underlying, "TracerVault", "TVLT") {
         UNDERLYING = ERC20(underlying);
@@ -34,6 +36,11 @@ contract VaultV1 is ERC4626, Ownable {
     function totalAssets() public view override returns (uint256) {
         // account for balances outstanding in bot/strategy, check balances
         return UNDERLYING.balanceOf(address(this)) + STRATEGY.value();
+    }
+
+    //Sets the withdraw lock
+    function setLock(bool _lock) public onlyOwner {
+        LOCKED = _lock;
     }
 
     //sets the strategy address to send funds
@@ -62,10 +69,13 @@ contract VaultV1 is ERC4626, Ownable {
     }
 
     /**
-    * @notice called before the actual withdraw is executed as part of the vault
-    * @dev pulls as many funds from the strategy as possible.
-    */
+     * @notice called before the actual withdraw is executed as part of the vault
+     * @dev pulls as many funds from the strategy as possible.
+     * @dev checks locked state, if locked, revert
+     */
     function beforeWithdraw(uint256 amount) internal virtual override {
+        //require vault is not locked, else revert
+        require(!LOCKED, "Vault is locked");
         // check how much underlying we have "on hand"
         uint256 startUnderlying = UNDERLYING.balanceOf(address(this));
 
