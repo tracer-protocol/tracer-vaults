@@ -1,6 +1,6 @@
 const { expect, assert } = require("chai")
 
-describe("Vault", async () => {
+describe("VaultV2", async () => {
     let vault
     let vaultFactory
     let owner
@@ -11,7 +11,7 @@ describe("Vault", async () => {
 
     beforeEach(async () => {
         accounts = await ethers.getSigners()
-        vaultFactory = await ethers.getContractFactory("Vault")
+        vaultFactory = await ethers.getContractFactory("VaultV2")
         let strategyFactory = await ethers.getContractFactory("MockStrategy")
         let ERC20Factory = await ethers.getContractFactory("TestERC20")
         underlying = await ERC20Factory.deploy("Test Token", "TST")
