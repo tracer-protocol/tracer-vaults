@@ -270,6 +270,14 @@ describe("VaultV1", async () => {
                 )
             ).to.be.reverted
         })
+
+        it("clears the users requested withdraw", async() => {
+
+        })
+
+        it("reverts if the user has not requested to withdraw", async() => {
+
+        })
     })
 
     describe("redeem", async () => {
@@ -314,5 +322,27 @@ describe("VaultV1", async () => {
                 ethers.utils.parseEther("0.05").toString()
             )
         })
+    })
+
+    describe("request withdraw", async() => {
+        beforeEach(async() => {
+
+        })
+
+        it("reverts if the user does not have enough shares to withdraw", async() => {
+
+        })
+
+        it("reverts if not enough time has passed", async() => {
+
+        })
+
+        it("sets the users withdraw amount and withdraw time", async() => {
+
+        })
+
+        it("updates the total withdraw amount", async() => {
+
+        })    
     })
 })
