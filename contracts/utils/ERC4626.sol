@@ -58,7 +58,7 @@ abstract contract ERC4626 is ERC20 {
         amount = previewMint(shares);
 
         _mint(to, shares);
-        
+
         emit Deposit(msg.sender, to, amount);
 
         asset.safeTransferFrom(msg.sender, address(this), amount);

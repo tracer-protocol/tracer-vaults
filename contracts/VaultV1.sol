@@ -62,9 +62,9 @@ contract VaultV1 is ERC4626, Ownable {
     }
 
     /**
-    * @notice called before the actual withdraw is executed as part of the vault
-    * @dev pulls as many funds from the strategy as possible.
-    */
+     * @notice called before the actual withdraw is executed as part of the vault
+     * @dev pulls as many funds from the strategy as possible.
+     */
     function beforeWithdraw(uint256 amount) internal virtual override {
         // check how much underlying we have "on hand"
         uint256 startUnderlying = UNDERLYING.balanceOf(address(this));
