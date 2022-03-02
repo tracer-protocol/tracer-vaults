@@ -23,10 +23,10 @@ describe("VaultV1", async () => {
         }
 
         mockStrategy = await strategyFactory.deploy()
-        vault = await vaultFactory.deploy(underlying.address)
-
-        // init the strategy
-        vault.setStrategy(mockStrategy.address)
+        vault = await vaultFactory.deploy(
+            underlying.address,
+            mockStrategy.address
+        )
 
         await mockStrategy.init(vault.address, underlying.address)
     })
@@ -67,18 +67,18 @@ describe("VaultV1", async () => {
             )
         })
 
-        // todo: fix this failing test
-        it.skip("issues correct vault shares", async () => {
+        it("issues correct vault shares", async () => {
             let vaultBalance = await vault.balanceOf(accounts[0].address)
             assert.equal(vaultBalance.toString(), ethers.utils.parseEther("1"))
         })
 
+        // todo: Get proper reversion strings
         it("reverts on insufficient approval", async () => {
             await expect(
                 vault
                     .connect(accounts[1])
                     .deposit(ethers.utils.parseEther("1"), accounts[1].address)
-            ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
+            ).to.be.reverted
         })
     })
 
@@ -89,6 +89,7 @@ describe("VaultV1", async () => {
                 ethers.utils.parseEther("1")
             )
             await vault.mint(ethers.utils.parseEther("1"), accounts[0].address)
+            await mockStrategy.setValue(ethers.utils.parseEther("1"))
         })
 
         it("distributes funds to the strategies", async () => {
@@ -108,11 +109,13 @@ describe("VaultV1", async () => {
             )
         })
 
-        it.skip("issues correct vault shares", async () => {
+        it("issues correct vault shares", async () => {
             // alter the exchange rate. 1 share = 2 units of collateral
             await mockStrategy.setValue(ethers.utils.parseEther("2"))
 
-            //  approve from account 1
+            // vault state: 2 units of underlying and 1 outstanding share
+
+            // approve from account 1
             await underlying
                 .connect(accounts[1])
                 .approve(vault.address, ethers.utils.parseEther("2"))
@@ -147,7 +150,7 @@ describe("VaultV1", async () => {
         it("reverts on insufficient approval", async () => {
             await expect(
                 vault
-                    .connect(accounts[1])
+                    .connect(accounts[5])
                     .mint(ethers.utils.parseEther("1"), accounts[1].address)
             ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
         })
