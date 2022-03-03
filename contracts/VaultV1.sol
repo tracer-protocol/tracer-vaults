@@ -26,9 +26,8 @@ contract VaultV1 is ERC4626, Ownable {
     //top up amount (adjusted on large withdrawals)
     uint256 public TOP_UP;
 
-    constructor(ERC20 underlying, address strategy) ERC4626(underlying, "TracerVault", "TVLT") {
+    constructor(ERC20 underlying) ERC4626(underlying, "TracerVault", "TVLT") {
         UNDERLYING = ERC20(underlying);
-        STRATEGY = IStrategy(strategy);
     }
 
     function totalAssets() public view override returns (uint256) {

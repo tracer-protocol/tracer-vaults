@@ -77,6 +77,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
      * @param amount the amount of underlying tokens request to be withdrawn.
      */
     function withdraw(uint256 amount) external override {
+        require(msg.sender == VAULT, "only vault can withdraw");
         // 1. Compute amount available to be transfered. Cap at balance of the strategy
         uint256 currentBalance = VAULT_ASSET.balanceOf(address(this));
         uint256 amountToTransfer = amount >= currentBalance ? currentBalance : amount;
