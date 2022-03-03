@@ -98,6 +98,7 @@ contract VaultV1 is ERC4626, Ownable {
     * @dev sets the withdraw window to 24 hours
     */
     function requestWithdraw(uint256 amount) public {
+        require(requestedWithdraws[msg.sender] == 0, "Already requested withdraw");
         uint256 shares = previewDeposit(amount);
         require(shares <= balanceOf[msg.sender], "insufficient shares");
         // increment the amount that has been requested
