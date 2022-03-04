@@ -15,8 +15,6 @@ contract VaultV1 is ERC4626, Ownable {
     ERC20 public immutable underlying;
     //the strategy address
     IStrategy public strategy;
-    //the buffer amount (indicates to bot the minimun amount of tokens that can be stored in the vault)
-    uint256 public BUFFER;
 
     // Withdraw locking params
     mapping(address => uint256) public requestedWithdraws;
@@ -41,17 +39,6 @@ contract VaultV1 is ERC4626, Ownable {
         strategy = IStrategy(_strategy);
     }
 
-    //sets the buffer amount to leave in vault
-    //Bot queries vault Balance and compares to buffer amount
-    function setBuffer(uint256 buffer) public onlyOwner {
-        BUFFER = buffer;
-    }
-
-    //returns current balance of underlying in vault (represents buffer amount)
-    function bufBalance() public view returns (uint256) {
-        return underlying.balanceOf(address(this));
-    }
-
     //sends funds from the vault to the strategy address
     function afterDeposit(uint256 amount) internal virtual override {
         underlying.safeTransfer(address(strategy), amount);
@@ -70,20 +57,20 @@ contract VaultV1 is ERC4626, Ownable {
             "withdraw locked"
         );
 
-        // check how much underlying we have "on hand"
-        uint256 startUnderlying = underlying.balanceOf(address(this));
-
-        if (startUnderlying < amount && strategy.withdrawable() >= amount) {
-            // not enough on hand but enough in the strategy. withdraw
-            strategy.withdraw(amount);
-        } else if (startUnderlying < amount) {
-            // not enough on hand. Not enough in strategy. Revert to be safe.
+        // all funds are stored in strategy. See how much can be pulled
+        if (strategy.withdrawable() < amount) {
+            // we don't have enough funds
             revert("not enough funds in vault");
         }
+
+        // pull funds from strategy so they can be returned to the user
+        strategy.withdraw(amount);
 
         // update the users requested withdraw status
         requestedWithdraws[msg.sender] = 0;
         unlockTime[msg.sender] = 0;
+        // update global withdraw amount
+        totalRequestedWithdraws -= amount;
     }
 
     /**

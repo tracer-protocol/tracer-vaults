@@ -317,20 +317,19 @@ describe("VaultV1", async () => {
         })
     })
 
-    describe("setStrategy", async() => {
-
-        beforeEach(async() => {
+    describe("setStrategy", async () => {
+        beforeEach(async () => {
             // pretend the strategy has some value in it
             mockStrategy.setValue(ethers.utils.parseEther("1"))
         })
 
-        it("reverts if not called by the owner", async() => {
+        it("reverts if not called by the owner", async () => {
             await expect(
                 vault.connect(accounts[2]).setStrategy(accounts[1].address)
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("reverts if the strategy has deployed funds on hand", async() => {
+        it("reverts if the strategy has deployed funds on hand", async () => {
             await expect(
                 vault.setStrategy(accounts[1].address)
             ).to.be.revertedWith("strategy still active")
