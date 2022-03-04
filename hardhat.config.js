@@ -1,7 +1,7 @@
 require("@nomiclabs/hardhat-waffle")
 require("@nomiclabs/hardhat-solhint")
 require("@nomiclabs/hardhat-etherscan")
-require('hardhat-deploy')
+require("hardhat-deploy")
 require("@nomiclabs/hardhat-ethers")
 
 // You need to export an object to set up your config
