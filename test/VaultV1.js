@@ -254,6 +254,9 @@ describe("VaultV1", async () => {
             await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
             await ethers.provider.send("evm_mine")
 
+            // get the mock strategy to loose money to simulate not enough funds
+            await mockStrategy.setWithdrawable(ethers.utils.parseEther("0.5"))
+
             // withdraw all funds in the vault
             await expect(
                 vault.redeem(

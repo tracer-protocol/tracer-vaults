@@ -67,4 +67,13 @@ contract MockStrategy is IStrategy, AccessControl {
     function setValue(uint256 newValue) external {
         _value = newValue;
     }
+
+    /**
+    * @dev burns tokens to reduce the withdrawable amount
+    */
+    function setWithdrawable(uint256 newValue) external {
+        uint256 currentBal = VAULT_ASSET.balanceOf(address(this));
+        require(newValue <= currentBal, "new val too high");
+        VAULT_ASSET.transfer(msg.sender, currentBal - newValue);
+    }
 }
