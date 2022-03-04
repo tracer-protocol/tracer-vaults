@@ -34,9 +34,10 @@ describe("VaultV1", async () => {
 
     describe("constructor", async () => {
         it("records correct state variables", async () => {
-            // todo check all state variables are saved on constructor
             let asset = await vault.asset()
+            let strategy = await vault.strategy()
             assert.equal(asset, underlying.address)
+            assert.equal(strategy, mockStrategy.address)
         })
     })
 
@@ -51,15 +52,18 @@ describe("VaultV1", async () => {
                 accounts[0].address
             )
         })
+
         it("distributes funds to the strategies", async () => {
-            // 100% of funds go to strategy 0
+            // 100% of funds go to the strategy
             let strategyBalance = await underlying.balanceOf(
                 mockStrategy.address
             )
+
             assert.equal(
                 strategyBalance.toString(),
                 ethers.utils.parseEther("1").toString()
             )
+
             // 0% stay with the vault
             let vaultBalance = await underlying.balanceOf(vault.address)
             assert.equal(
@@ -310,6 +314,26 @@ describe("VaultV1", async () => {
             expect(totalWithdrawAmount).to.be.equal(
                 ethers.utils.parseEther("0.7")
             )
+        })
+    })
+
+    describe("setStrategy", async() => {
+
+        beforeEach(async() => {
+            // pretend the strategy has some value in it
+            mockStrategy.setValue(ethers.utils.parseEther("1"))
+        })
+
+        it("reverts if not called by the owner", async() => {
+            await expect(
+                vault.connect(accounts[2]).setStrategy(accounts[1].address)
+            ).to.be.revertedWith("Ownable: caller is not the owner")
+        })
+
+        it("reverts if the strategy has deployed funds on hand", async() => {
+            await expect(
+                vault.setStrategy(accounts[1].address)
+            ).to.be.revertedWith("strategy still active")
         })
     })
 })
