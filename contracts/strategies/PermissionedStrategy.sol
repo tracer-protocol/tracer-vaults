@@ -39,8 +39,8 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         assetWhitelist[vaultAsset] = true;
 
         // make contract deployer the default admin
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(WHITELISTER, msg.sender);
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         // cache state
         POOL = pool;
