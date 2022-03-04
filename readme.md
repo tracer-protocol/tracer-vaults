@@ -18,6 +18,11 @@ Run tests using
 yarn run test
 ```
 
+Test coverage using
+```
+yarn run coverage
+```
+
 ## Blueprint
 
 ```ml
