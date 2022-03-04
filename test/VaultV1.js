@@ -216,6 +216,54 @@ describe("VaultV1", async () => {
             ).to.be.reverted
         })
 
+        it("reverts if the user has insufficient requested amounts", async () => {
+            await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
+
+            // fast forward time 25 hours
+            await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
+            await ethers.provider.send("evm_mine")
+
+            await expect(
+                vault.redeem(
+                    ethers.utils.parseEther("1"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("withdraw locked")
+        })
+
+        it("reverts if the user withdraws too early after a request", async () => {
+            await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
+
+            // dont fast forward and try withdraw too early
+            await expect(
+                vault.redeem(
+                    ethers.utils.parseEther("1"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("withdraw locked")
+        })
+
+        it("reverts if the vault does not have enough funds", async () => {
+            await underlying.balanceOf(accounts[0].address)
+
+            await vault.requestWithdraw(ethers.utils.parseEther("1"))
+
+            // fast forward time 25 hours
+            await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
+            await ethers.provider.send("evm_mine")
+
+            // withdraw all funds in the vault
+            await expect(
+                vault.redeem(
+                    ethers.utils.parseEther("1"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("not enough funds in vault")
+        })
+
         it("withdraws the correct amount of underlying given the users shares", async () => {
             // note this test functions identically to withdraw since the ratio of shares: assets is 1:1
             let startBalance = await underlying.balanceOf(accounts[0].address)
@@ -262,7 +310,7 @@ describe("VaultV1", async () => {
             ).to.be.revertedWith("insufficient shares")
         })
 
-        it("reverts if the user withdraws multiple times within the withdraw period", async () => {
+        it("reverts if the user requests to withdraw multiple times within the withdraw period", async () => {
             await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
             await expect(
                 vault.requestWithdraw(ethers.utils.parseEther("2"))
@@ -317,20 +365,19 @@ describe("VaultV1", async () => {
         })
     })
 
-    describe("setStrategy", async() => {
-
-        beforeEach(async() => {
+    describe("setStrategy", async () => {
+        beforeEach(async () => {
             // pretend the strategy has some value in it
             mockStrategy.setValue(ethers.utils.parseEther("1"))
         })
 
-        it("reverts if not called by the owner", async() => {
+        it("reverts if not called by the owner", async () => {
             await expect(
                 vault.connect(accounts[2]).setStrategy(accounts[1].address)
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("reverts if the strategy has deployed funds on hand", async() => {
+        it("reverts if the strategy has deployed funds on hand", async () => {
             await expect(
                 vault.setStrategy(accounts[1].address)
             ).to.be.revertedWith("strategy still active")
