@@ -3,6 +3,7 @@ require("@nomiclabs/hardhat-solhint")
 require("@nomiclabs/hardhat-etherscan")
 require("hardhat-deploy")
 require("@nomiclabs/hardhat-ethers")
+require("solidity-coverage")
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
