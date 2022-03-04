@@ -44,7 +44,7 @@ abstract contract ERC4626 is ERC20 {
     function deposit(uint256 amount, address to) public virtual returns (uint256 shares) {
         // Check for rounding error since we round down in previewDeposit.
         require((shares = previewDeposit(amount)) != 0, "ZERO_SHARES");
-        
+
         _mint(to, shares);
 
         emit Deposit(msg.sender, to, amount);

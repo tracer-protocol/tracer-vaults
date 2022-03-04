@@ -29,8 +29,6 @@ contract VaultV1 is ERC4626, Ownable {
     uint256 public totalRequestedWithdraws;
     uint256 public withdrawWindow = 24 hours;
 
-
-
     constructor(ERC20 underlying, address strategy) ERC4626(underlying, "TracerVault", "TVLT") {
         UNDERLYING = ERC20(underlying);
         STRATEGY = IStrategy(strategy);
@@ -74,7 +72,10 @@ contract VaultV1 is ERC4626, Ownable {
     function beforeWithdraw(uint256 amount) internal virtual override {
         // require the user has atleast this much amount pending for withdraw
         // require the users unlock time is in the past
-        require(requestedWithdraws[msg.sender] >= amount && unlockTime[msg.sender] <= block.timestamp, "withdraw locked");
+        require(
+            requestedWithdraws[msg.sender] >= amount && unlockTime[msg.sender] <= block.timestamp,
+            "withdraw locked"
+        );
 
         // check how much underlying we have "on hand"
         uint256 startUnderlying = UNDERLYING.balanceOf(address(this));
@@ -93,10 +94,10 @@ contract VaultV1 is ERC4626, Ownable {
     }
 
     /**
-    * @notice Lets a user request to withdraw funds.
-    * @param amount the amount in terms of underlying asset being requested to withdraw
-    * @dev sets the withdraw window to 24 hours
-    */
+     * @notice Lets a user request to withdraw funds.
+     * @param amount the amount in terms of underlying asset being requested to withdraw
+     * @dev sets the withdraw window to 24 hours
+     */
     function requestWithdraw(uint256 amount) public {
         require(requestedWithdraws[msg.sender] == 0, "Already requested withdraw");
         uint256 shares = previewDeposit(amount);

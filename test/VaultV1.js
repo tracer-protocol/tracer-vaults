@@ -219,8 +219,8 @@ describe("VaultV1", async () => {
             await vault.requestWithdraw(ethers.utils.parseEther("1"))
 
             // fast forward time 25 hours
-            await ethers.provider.send('evm_increaseTime', [25*60*60]);
-            await ethers.provider.send('evm_mine');
+            await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
+            await ethers.provider.send("evm_mine")
 
             // withdraw all funds in the vault
             await vault.redeem(
@@ -266,40 +266,50 @@ describe("VaultV1", async () => {
         })
 
         it("sets the users withdraw amount and withdraw time", async () => {
-            const blockNumBefore = await ethers.provider.getBlockNumber();
-            const blockBefore = await ethers.provider.getBlock(blockNumBefore);
-            const timestampBefore = blockBefore.timestamp;
+            const blockNumBefore = await ethers.provider.getBlockNumber()
+            const blockBefore = await ethers.provider.getBlock(blockNumBefore)
+            const timestampBefore = blockBefore.timestamp
 
             await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
-            let requestedWithdraw = await vault.requestedWithdraws(accounts[0].address)
+            let requestedWithdraw = await vault.requestedWithdraws(
+                accounts[0].address
+            )
             let unlockTime = await vault.unlockTime(accounts[0].address)
 
-            expect(requestedWithdraw.toString()).to.be.equal(ethers.utils.parseEther("0.5"))
+            expect(requestedWithdraw.toString()).to.be.equal(
+                ethers.utils.parseEther("0.5")
+            )
             // unlock time is > 23.9 hours from now
-            expect(parseInt(unlockTime.toString())).to.be.greaterThan(parseInt(timestampBefore.toString()) + 86040)
+            expect(parseInt(unlockTime.toString())).to.be.greaterThan(
+                parseInt(timestampBefore.toString()) + 86040
+            )
             // unlock time is ~ < 24 hours from now
-            expect(parseInt(unlockTime.toString())).to.be.lessThan(parseInt(timestampBefore.toString()) + 86500)
+            expect(parseInt(unlockTime.toString())).to.be.lessThan(
+                parseInt(timestampBefore.toString()) + 86500
+            )
         })
 
         it("updates the total withdraw amount", async () => {
             // deposit from a second account
-            await underlying.connect(accounts[1]).approve(
-                vault.address,
-                ethers.utils.parseEther("1")
-            )
-            await vault.connect(accounts[1]).deposit(
-                ethers.utils.parseEther("1"),
-                accounts[1].address
-            )
+            await underlying
+                .connect(accounts[1])
+                .approve(vault.address, ethers.utils.parseEther("1"))
+            await vault
+                .connect(accounts[1])
+                .deposit(ethers.utils.parseEther("1"), accounts[1].address)
 
             // mock strategy should have a value of 2 as there is a 1 ETH deposit in the beforeEach
             // and a 1 ETH deposit above
             await mockStrategy.setValue(ethers.utils.parseEther("2"))
 
             await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
-            await vault.connect(accounts[1]).requestWithdraw(ethers.utils.parseEther("0.2"))
+            await vault
+                .connect(accounts[1])
+                .requestWithdraw(ethers.utils.parseEther("0.2"))
             let totalWithdrawAmount = await vault.totalRequestedWithdraws()
-            expect(totalWithdrawAmount).to.be.equal(ethers.utils.parseEther("0.7"))
+            expect(totalWithdrawAmount).to.be.equal(
+                ethers.utils.parseEther("0.7")
+            )
         })
     })
 })
