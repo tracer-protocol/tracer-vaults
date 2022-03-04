@@ -2,13 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@rari-capital/solmate/src/tokens/ERC20.sol";
-import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
-import "./interfaces/IStrategy.sol";
-
-//important! Importing ERRC4626 from solmate will cause the contract to fail compile
 import "./utils/ERC4626.sol";
-import "./utils/FixedPointMathLib.sol";
+import "./interfaces/IStrategy.sol";
 
 // An ERC4626 compliant vault that interacts with a strategy address
 // BUFFER is the minimun amount of tokens that can be stored in the vault and should

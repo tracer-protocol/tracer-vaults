@@ -129,7 +129,7 @@ describe("VaultV2", async () => {
                 vault
                     .connect(accounts[1])
                     .deposit(ethers.utils.parseEther("1"), accounts[1].address)
-            ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
+            ).to.be.revertedWith("ERC20: insufficient allowance")
         })
     })
 
@@ -200,7 +200,7 @@ describe("VaultV2", async () => {
                 vault
                     .connect(accounts[1])
                     .mint(ethers.utils.parseEther("1"), accounts[1].address)
-            ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
+            ).to.be.revertedWith("ERC20: insufficient allowance")
         })
     })
 

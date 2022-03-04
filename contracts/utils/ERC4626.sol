@@ -4,7 +4,6 @@ pragma solidity >=0.8.0;
 import "@rari-capital/solmate/src/tokens/ERC20.sol";
 import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
 import "./FixedPointMathLib.sol";
-import "hardhat/console.sol";
 
 // Importing from local utils to avoid solmate import errors
 // import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";

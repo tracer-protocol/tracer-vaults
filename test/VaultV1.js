@@ -73,7 +73,7 @@ describe("VaultV1", async () => {
             assert.equal(vaultBalance.toString(), ethers.utils.parseEther("1"))
         })
 
-        // todo: Get proper reversion strings
+        // todo: This should have a reversion string. Investigate why it does not
         it("reverts on insufficient approval", async () => {
             await expect(
                 vault
@@ -153,7 +153,7 @@ describe("VaultV1", async () => {
                 vault
                     .connect(accounts[5])
                     .mint(ethers.utils.parseEther("1"), accounts[1].address)
-            ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
+            ).to.be.revertedWith("ERC20: insufficient allowance")
         })
     })
 
