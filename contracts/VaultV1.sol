@@ -26,8 +26,8 @@ contract VaultV1 is ERC4626, Ownable {
     // Withdraw locking params
     mapping(address => uint256) public requestedWithdraws;
     mapping(address => uint256) public unlockTime;
-    uint256 totalRequestedWithdraws;
-    uint256 withdrawWindow = 24 hours;
+    uint256 public totalRequestedWithdraws;
+    uint256 public withdrawWindow = 24 hours;
 
 
 
@@ -74,7 +74,7 @@ contract VaultV1 is ERC4626, Ownable {
     function beforeWithdraw(uint256 amount) internal virtual override {
         // require the user has atleast this much amount pending for withdraw
         // require the users unlock time is in the past
-        require(requestedWithdraws[msg.sender] >= amount && unlockTime[msg.sender] <= block.timestamp, "Vault is locked");
+        require(requestedWithdraws[msg.sender] >= amount && unlockTime[msg.sender] <= block.timestamp, "withdraw locked");
 
         // check how much underlying we have "on hand"
         uint256 startUnderlying = UNDERLYING.balanceOf(address(this));

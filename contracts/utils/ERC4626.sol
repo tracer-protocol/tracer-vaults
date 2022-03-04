@@ -4,6 +4,7 @@ pragma solidity >=0.8.0;
 import "@rari-capital/solmate/src/tokens/ERC20.sol";
 import "@rari-capital/solmate/src/utils/SafeTransferLib.sol";
 import "./FixedPointMathLib.sol";
+import "hardhat/console.sol";
 
 // Importing from local utils to avoid solmate import errors
 // import "@rari-capital/solmate/src/utils/FixedPointMathLib.sol";
@@ -43,7 +44,7 @@ abstract contract ERC4626 is ERC20 {
     function deposit(uint256 amount, address to) public virtual returns (uint256 shares) {
         // Check for rounding error since we round down in previewDeposit.
         require((shares = previewDeposit(amount)) != 0, "ZERO_SHARES");
-
+        
         _mint(to, shares);
 
         emit Deposit(msg.sender, to, amount);
