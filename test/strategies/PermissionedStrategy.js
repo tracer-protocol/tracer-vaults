@@ -102,6 +102,11 @@ describe("PermissionedStrategy", async () => {
     })
 
     describe("withdraw", async () => {
+
+        beforeEach(async() => {
+            vaultAsset.transfer(strategy.address, ethers.utils.parseEther("10"))
+        })
+
         it("reverts if the caller is not the vault", async() => {
 
         })
@@ -112,6 +117,19 @@ describe("PermissionedStrategy", async () => {
 
         it("transfers funds back to the vault", async() => {
             
+        })
+
+        it("reduces the requested withdraw amount", async () => {
+            await strategy.requestWithdraw(ethers.utils.parseEther("5"))
+            let requestedWithdrawBefore = await strategy.totalRequestedWithdraws()
+
+            await strategy.withdraw(ethers.utils.parseEther("2"))
+
+            let requestedWithdrawAfter = await strategy.totalRequestedWithdraws()
+
+            expect(requestedWithdrawBefore.sub(requestedWithdrawAfter).toString()).to.equal(
+                ethers.utils.parseEther("2").toString()
+            )
         })
     })
 
@@ -180,6 +198,18 @@ describe("PermissionedStrategy", async () => {
                         vaultAsset.address
                     )
             ).to.be.revertedWith("INSUFFICIENT FUNDS")
+        })
+
+        it("reverts if the requested withdraw amount is above the amount held", async() => {
+            await strategy.requestWithdraw(ethers.utils.parseEther("10"))
+            await expect(
+                strategy
+                    .connect(accounts[1])
+                    .pullAsset(
+                        ethers.utils.parseEther("5"),
+                        vaultAsset.address
+                    )
+            ).to.be.revertedWith("asset needed for withdraws")
         })
     })
 
@@ -260,4 +290,14 @@ describe("PermissionedStrategy", async () => {
     describe("setWhistlist", async () => {})
 
     describe("setAssetWhitelist", async () => {})
+
+    describe("requestWithdraw", async() => {
+        it("increments the requested withdraw amount", async() => {
+            let requestedWithdrawsBefore = await strategy.totalRequestedWithdraws()
+            await strategy.requestWithdraw(ethers.utils.parseEther("10"))
+            let requestedWithdrawAfter = await strategy.totalRequestedWithdraws()
+            expect(requestedWithdrawsBefore.toString()).to.equal(ethers.utils.parseEther("0").toString())
+            expect(requestedWithdrawAfter.toString()).to.equal(ethers.utils.parseEther("10").toString())
+        })
+    })
 })

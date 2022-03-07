@@ -26,7 +26,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     mapping(address => bool) public assetWhitelist;
 
     // withdraw logic
-    uint256 public requestedWithdraws;
+    uint256 public totalRequestedWithdraws;
 
     // events
     event FUNDS_REQUEST(uint256 amount, address collateral);
@@ -79,7 +79,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     * @param amount the amount being requested to withdraw
     */
     function requestWithdraw(uint256 amount) external override onlyVault {
-        requestedWithdraws += amount;
+        totalRequestedWithdraws += amount;
     }
 
     /**
@@ -101,7 +101,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         }
 
         // 3. perform transfer
-        requestedWithdraws -= amount;
+        totalRequestedWithdraws -= amount;
         VAULT_ASSET.transfer(VAULT, amountToTransfer);
     }
 
@@ -122,7 +122,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
 
         // if the asset is the vault asset, require we have enough to pay out the requested withdraws
         if (asset == address(VAULT_ASSET)) {
-            require(currentAssetBal >= requestedWithdraws, "asset needed for withdraws");
+            require(currentAssetBal >= totalRequestedWithdraws, "asset needed for withdraws");
         }
 
         // update accounting
