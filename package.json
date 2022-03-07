@@ -17,13 +17,15 @@
         "test": "npx hardhat test",
         "build": "npm run clean && npm run compile",
         "clean": "npx hardhat clean",
-        "compile": "npx hardhat compile"
+        "compile": "npx hardhat compile",
+        "coverage": "npx hardhat coverage"
     },
     "dependencies": {
         "@nomiclabs/hardhat-etherscan": "^3.0.1",
         "@openzeppelin/contracts": "^4.5.0",
         "@rari-capital/solmate": "^6.2.0",
         "@uniswap/v3-periphery": "^1.4.0",
-        "hardhat-deploy": "^0.10.5"
+        "hardhat-deploy": "^0.10.5",
+        "solidity-coverage": "^0.7.20"
     }
 }
