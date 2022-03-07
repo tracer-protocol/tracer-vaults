@@ -45,20 +45,30 @@ describe("PermissionedStrategy", async () => {
         strategy.setWhitelist(accounts[1].address, true)
     })
 
-    describe("constructor", async() => {
-        it("sets appropriate initial whitelist", async() => {
-            let poolShortTokenWhitelisted = await strategy.assetWhitelist(mockShortToken.address)
-            let vaultAssetWhitelisted = await strategy.assetWhitelist(vaultAsset.address)
+    describe("constructor", async () => {
+        it("sets appropriate initial whitelist", async () => {
+            let poolShortTokenWhitelisted = await strategy.assetWhitelist(
+                mockShortToken.address
+            )
+            let vaultAssetWhitelisted = await strategy.assetWhitelist(
+                vaultAsset.address
+            )
             expect(poolShortTokenWhitelisted).to.be.true
             expect(vaultAssetWhitelisted).to.be.true
         })
 
         // todo: why is the default admin role check failing
-        it.skip("sets initial permissions", async() => {
+        it.skip("sets initial permissions", async () => {
             let defaultAdminRole = ethers.utils.id("DEFAULT_ADMIN_ROLE")
             let whitelisterRole = ethers.utils.id("WHITELISTER_ROLE")
-            let senderIsDefault = await strategy.hasRole(defaultAdminRole, accounts[0].address)
-            let senderIsWhitelister = await strategy.hasRole(whitelisterRole, accounts[0].address)
+            let senderIsDefault = await strategy.hasRole(
+                defaultAdminRole,
+                accounts[0].address
+            )
+            let senderIsWhitelister = await strategy.hasRole(
+                whitelisterRole,
+                accounts[0].address
+            )
             expect(senderIsDefault).to.be.true
             expect(senderIsWhitelister).to.be.true
         })
@@ -102,34 +112,29 @@ describe("PermissionedStrategy", async () => {
     })
 
     describe("withdraw", async () => {
-
-        beforeEach(async() => {
+        beforeEach(async () => {
             vaultAsset.transfer(strategy.address, ethers.utils.parseEther("10"))
         })
 
-        it("reverts if the caller is not the vault", async() => {
+        it("reverts if the caller is not the vault", async () => {})
 
-        })
+        it("caps the amount at the current balance", async () => {})
 
-        it("caps the amount at the current balance", async() => {
-
-        })
-
-        it("transfers funds back to the vault", async() => {
-            
-        })
+        it("transfers funds back to the vault", async () => {})
 
         it("reduces the requested withdraw amount", async () => {
             await strategy.requestWithdraw(ethers.utils.parseEther("5"))
-            let requestedWithdrawBefore = await strategy.totalRequestedWithdraws()
+            let requestedWithdrawBefore =
+                await strategy.totalRequestedWithdraws()
 
             await strategy.withdraw(ethers.utils.parseEther("2"))
 
-            let requestedWithdrawAfter = await strategy.totalRequestedWithdraws()
+            let requestedWithdrawAfter =
+                await strategy.totalRequestedWithdraws()
 
-            expect(requestedWithdrawBefore.sub(requestedWithdrawAfter).toString()).to.equal(
-                ethers.utils.parseEther("2").toString()
-            )
+            expect(
+                requestedWithdrawBefore.sub(requestedWithdrawAfter).toString()
+            ).to.equal(ethers.utils.parseEther("2").toString())
         })
     })
 
@@ -200,15 +205,12 @@ describe("PermissionedStrategy", async () => {
             ).to.be.revertedWith("INSUFFICIENT FUNDS")
         })
 
-        it("reverts if the requested withdraw amount is above the amount held", async() => {
+        it("reverts if the requested withdraw amount is above the amount held", async () => {
             await strategy.requestWithdraw(ethers.utils.parseEther("10"))
             await expect(
                 strategy
                     .connect(accounts[1])
-                    .pullAsset(
-                        ethers.utils.parseEther("5"),
-                        vaultAsset.address
-                    )
+                    .pullAsset(ethers.utils.parseEther("5"), vaultAsset.address)
             ).to.be.revertedWith("asset needed for withdraws")
         })
     })
@@ -291,13 +293,19 @@ describe("PermissionedStrategy", async () => {
 
     describe("setAssetWhitelist", async () => {})
 
-    describe("requestWithdraw", async() => {
-        it("increments the requested withdraw amount", async() => {
-            let requestedWithdrawsBefore = await strategy.totalRequestedWithdraws()
+    describe("requestWithdraw", async () => {
+        it("increments the requested withdraw amount", async () => {
+            let requestedWithdrawsBefore =
+                await strategy.totalRequestedWithdraws()
             await strategy.requestWithdraw(ethers.utils.parseEther("10"))
-            let requestedWithdrawAfter = await strategy.totalRequestedWithdraws()
-            expect(requestedWithdrawsBefore.toString()).to.equal(ethers.utils.parseEther("0").toString())
-            expect(requestedWithdrawAfter.toString()).to.equal(ethers.utils.parseEther("10").toString())
+            let requestedWithdrawAfter =
+                await strategy.totalRequestedWithdraws()
+            expect(requestedWithdrawsBefore.toString()).to.equal(
+                ethers.utils.parseEther("0").toString()
+            )
+            expect(requestedWithdrawAfter.toString()).to.equal(
+                ethers.utils.parseEther("10").toString()
+            )
         })
     })
 })

@@ -75,9 +75,9 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     }
 
     /**
-    * @notice allows the vault to notify the strategy of a request to withdraw
-    * @param amount the amount being requested to withdraw
-    */
+     * @notice allows the vault to notify the strategy of a request to withdraw
+     * @param amount the amount being requested to withdraw
+     */
     function requestWithdraw(uint256 amount) external override onlyVault {
         totalRequestedWithdraws += amount;
     }

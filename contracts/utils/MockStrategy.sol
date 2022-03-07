@@ -72,8 +72,8 @@ contract MockStrategy is IStrategy, AccessControl {
     }
 
     /**
-    * @dev burns tokens to reduce the withdrawable amount
-    */
+     * @dev burns tokens to reduce the withdrawable amount
+     */
     function setWithdrawable(uint256 newValue) external {
         uint256 currentBal = VAULT_ASSET.balanceOf(address(this));
         require(newValue <= currentBal, "new val too high");
@@ -81,16 +81,16 @@ contract MockStrategy is IStrategy, AccessControl {
     }
 
     /**
-    * @notice allows the vault to notify the strategy of a request to withdraw
-    * @param amount the amount being requested to withdraw
-    */
+     * @notice allows the vault to notify the strategy of a request to withdraw
+     * @param amount the amount being requested to withdraw
+     */
     function requestWithdraw(uint256 amount) external override {
         requestedWithdraws += amount;
     }
 
     /**
-    * @dev easy helper function for setting the requestedWithdraws amount
-    */
+     * @dev easy helper function for setting the requestedWithdraws amount
+     */
     function setRequestedWithdraw(uint256 newAmount) external {
         requestedWithdraws = newAmount;
     }

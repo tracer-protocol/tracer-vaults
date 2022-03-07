@@ -441,7 +441,7 @@ describe("VaultV1", async () => {
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("reverts if the strategy still has withdrawable funds", async() => {
+        it("reverts if the strategy still has withdrawable funds", async () => {
             // set value to 1 and withdrawable to be 0
             await mockStrategy.setValue(ethers.utils.parseEther("1"))
             await expect(
@@ -449,11 +449,14 @@ describe("VaultV1", async () => {
             ).to.be.revertedWith("strategy still active")
         })
 
-        it("reverts if the strategy still has value", async() => {
+        it("reverts if the strategy still has value", async () => {
             // set value to 0 and withdrawable to 1
             // note: in "normal" strategy conditions you would never expect to see this case
             await mockStrategy.setValue(ethers.utils.parseEther("0"))
-            await underlying.transfer(mockStrategy.address, ethers.utils.parseEther("1"))
+            await underlying.transfer(
+                mockStrategy.address,
+                ethers.utils.parseEther("1")
+            )
             await expect(
                 vault.setStrategy(accounts[1].address)
             ).to.be.revertedWith("strategy still active")
