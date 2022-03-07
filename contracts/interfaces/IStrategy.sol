@@ -25,4 +25,6 @@ interface IStrategy {
      * @param amount the amount of underlying tokens request to be withdrawn.
      */
     function withdraw(uint256 amount) external;
+
+    function requestWithdraw(uint256 amount) external;
 }
