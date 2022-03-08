@@ -89,6 +89,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
      */
     function withdraw(uint256 amount) external override onlyVault {
         require(msg.sender == VAULT, "only vault can withdraw");
+        require(amount <= totalRequestedWithdraws, "withdrawing more than requested");
         // 1. Compute amount available to be transfered. Cap at balance of the strategy
         uint256 currentBalance = VAULT_ASSET.balanceOf(address(this));
         uint256 amountToTransfer = amount >= currentBalance ? currentBalance : amount;

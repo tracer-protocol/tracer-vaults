@@ -168,6 +168,14 @@ describe("PermissionedStrategy", async () => {
                 requestedWithdrawBefore.sub(requestedWithdrawAfter).toString()
             ).to.equal(ethers.utils.parseEther("2").toString())
         })
+
+        it("reverts if amount is greater than the total requested withdraw amount", async () => {
+
+            await expect(
+                strategy.withdraw(ethers.utils.parseEther("1"))
+            ).to.be.revertedWith("withdrawing more than requested")
+
+        })
     })
 
     describe("pullAsset", async () => {
@@ -321,9 +329,9 @@ describe("PermissionedStrategy", async () => {
         })
     })
 
-    describe("setWhistlist", async () => {})
+    describe("setWhistlist", async () => { })
 
-    describe("setAssetWhitelist", async () => {})
+    describe("setAssetWhitelist", async () => { })
 
     describe("requestWithdraw", async () => {
         it("increments the requested withdraw amount", async () => {
