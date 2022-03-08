@@ -370,7 +370,7 @@ describe("PermissionedStrategy", async () => {
         it("adds an asset to the whitelist", async () => {
             await strategy.setAssetWhitelist(accounts[5].address, true)
 
-            let isWhitelisted = await strategy.whitelist(accounts[5].address)
+            let isWhitelisted = await strategy.assetWhitelist(accounts[5].address)
             expect(isWhitelisted).to.be.true
         })
     })
