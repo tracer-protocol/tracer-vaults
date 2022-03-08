@@ -116,11 +116,43 @@ describe("PermissionedStrategy", async () => {
             vaultAsset.transfer(strategy.address, ethers.utils.parseEther("10"))
         })
 
-        it("reverts if the caller is not the vault", async () => {})
+        it("reverts if the caller is not the vault", async () => {
+            await expect(
+                strategy.connect(accounts[3]).withdraw(ethers.utils.parseEther("2"))
+            ).to.be.revertedWith("only vault can withdraw")
+        })
 
-        it("caps the amount at the current balance", async () => {})
+        it("caps the amount at the current balance", async () => {
+            // request withdraw first
+            await strategy.requestWithdraw(ethers.utils.parseEther("15"))
 
-        it("transfers funds back to the vault", async () => {})
+            let vaultBalanceBefore = await vaultAsset.balanceOf(accounts[0].address)
+
+            await strategy.withdraw(ethers.utils.parseEther("15"))
+
+            let vaultBalanceAfter = await vaultAsset.balanceOf(accounts[0].address)
+
+            // only withdraws 10 as that is the balance of the strategy
+            expect(
+                vaultBalanceAfter.sub(vaultBalanceBefore).toString()
+            ).to.equal(ethers.utils.parseEther("10").toString())
+        })
+
+        it("transfers funds back to the vault", async () => {
+            // request withdraw first
+            await strategy.requestWithdraw(ethers.utils.parseEther("1"))
+
+            let vaultBalanceBefore = await vaultAsset.balanceOf(accounts[0].address)
+
+            await strategy.withdraw(ethers.utils.parseEther("1"))
+
+            let vaultBalanceAfter = await vaultAsset.balanceOf(accounts[0].address)
+
+            // only withdraws 10 as that is the balance of the strategy
+            expect(
+                vaultBalanceAfter.sub(vaultBalanceBefore).toString()
+            ).to.equal(ethers.utils.parseEther("1").toString())
+        })
 
         it("reduces the requested withdraw amount", async () => {
             await strategy.requestWithdraw(ethers.utils.parseEther("5"))

@@ -101,6 +101,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         }
 
         // 3. perform transfer
+        // note: If the vault has not requested a withdraw, this operation may underflow.
         totalRequestedWithdraws -= amount;
         VAULT_ASSET.transfer(VAULT, amountToTransfer);
     }
