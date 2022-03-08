@@ -58,8 +58,8 @@ describe("PermissionedStrategy", async () => {
         })
 
         // todo: why is the default admin role check failing
-        it.skip("sets initial permissions", async () => {
-            let defaultAdminRole = ethers.utils.id("DEFAULT_ADMIN_ROLE")
+        it("sets initial permissions", async () => {
+            let defaultAdminRole = ethers.constants.HashZero // default admin role is 0x00
             let whitelisterRole = ethers.utils.id("WHITELISTER_ROLE")
             let senderIsDefault = await strategy.hasRole(
                 defaultAdminRole,
