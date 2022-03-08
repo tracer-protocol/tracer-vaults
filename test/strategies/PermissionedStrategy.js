@@ -118,7 +118,9 @@ describe("PermissionedStrategy", async () => {
 
         it("reverts if the caller is not the vault", async () => {
             await expect(
-                strategy.connect(accounts[3]).withdraw(ethers.utils.parseEther("2"))
+                strategy
+                    .connect(accounts[3])
+                    .withdraw(ethers.utils.parseEther("2"))
             ).to.be.revertedWith("only vault can withdraw")
         })
 
@@ -126,11 +128,15 @@ describe("PermissionedStrategy", async () => {
             // request withdraw first
             await strategy.requestWithdraw(ethers.utils.parseEther("15"))
 
-            let vaultBalanceBefore = await vaultAsset.balanceOf(accounts[0].address)
+            let vaultBalanceBefore = await vaultAsset.balanceOf(
+                accounts[0].address
+            )
 
             await strategy.withdraw(ethers.utils.parseEther("15"))
 
-            let vaultBalanceAfter = await vaultAsset.balanceOf(accounts[0].address)
+            let vaultBalanceAfter = await vaultAsset.balanceOf(
+                accounts[0].address
+            )
 
             // only withdraws 10 as that is the balance of the strategy
             expect(
@@ -142,11 +148,15 @@ describe("PermissionedStrategy", async () => {
             // request withdraw first
             await strategy.requestWithdraw(ethers.utils.parseEther("1"))
 
-            let vaultBalanceBefore = await vaultAsset.balanceOf(accounts[0].address)
+            let vaultBalanceBefore = await vaultAsset.balanceOf(
+                accounts[0].address
+            )
 
             await strategy.withdraw(ethers.utils.parseEther("1"))
 
-            let vaultBalanceAfter = await vaultAsset.balanceOf(accounts[0].address)
+            let vaultBalanceAfter = await vaultAsset.balanceOf(
+                accounts[0].address
+            )
 
             // only withdraws 10 as that is the balance of the strategy
             expect(
@@ -170,11 +180,9 @@ describe("PermissionedStrategy", async () => {
         })
 
         it("reverts if amount is greater than the total requested withdraw amount", async () => {
-
             await expect(
                 strategy.withdraw(ethers.utils.parseEther("1"))
             ).to.be.revertedWith("withdrawing more than requested")
-
         })
     })
 
@@ -329,9 +337,43 @@ describe("PermissionedStrategy", async () => {
         })
     })
 
-    describe("setWhistlist", async () => { })
+    describe("setWhistlist", async () => {
+        it("reverts if not called by admin", async () => {
+            await expect(
+                strategy
+                    .connect(accounts[5])
+                    .setWhitelist(accounts[1].address, true)
+            ).to.be.revertedWith(
+                "AccessControl: account 0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc is missing role 0x8619cecd8b9e095ab43867f5b69d492180450fe862e6b50bfbfb24b75dd84c8a"
+            )
+        })
 
-    describe("setAssetWhitelist", async () => { })
+        it("adds an address to the whiteslist", async () => {
+            await strategy.setWhitelist(accounts[5].address, true)
+
+            let isWhitelisted = await strategy.whitelist(accounts[5].address)
+            expect(isWhitelisted).to.be.true
+        })
+    })
+
+    describe("setAssetWhitelist", async () => {
+        it("reverts if not called by admin", async () => {
+            await expect(
+                strategy
+                    .connect(accounts[5])
+                    .setAssetWhitelist(accounts[1].address, true)
+            ).to.be.revertedWith(
+                "AccessControl: account 0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc is missing role 0x8619cecd8b9e095ab43867f5b69d492180450fe862e6b50bfbfb24b75dd84c8a"
+            )
+        })
+
+        it("adds an asset to the whitelist", async () => {
+            await strategy.setAssetWhitelist(accounts[5].address, true)
+
+            let isWhitelisted = await strategy.whitelist(accounts[5].address)
+            expect(isWhitelisted).to.be.true
+        })
+    })
 
     describe("requestWithdraw", async () => {
         it("increments the requested withdraw amount", async () => {
