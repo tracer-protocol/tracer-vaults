@@ -19,7 +19,6 @@ contract VaultV1 is ERC4626, Ownable {
     // Withdraw locking params
     mapping(address => uint256) public requestedWithdraws;
     mapping(address => uint256) public unlockTime;
-    uint256 public totalRequestedWithdraws;
     uint256 public withdrawWindow = 24 hours;
 
     constructor(ERC20 _underlying, address _strategy) ERC4626(_underlying, "TracerVault", "TVLT") {
@@ -69,8 +68,6 @@ contract VaultV1 is ERC4626, Ownable {
         // update the users requested withdraw status
         requestedWithdraws[msg.sender] = 0;
         unlockTime[msg.sender] = 0;
-        // update global withdraw amount
-        totalRequestedWithdraws -= amount;
     }
 
     /**
@@ -86,7 +83,8 @@ contract VaultV1 is ERC4626, Ownable {
         requestedWithdraws[msg.sender] += amount;
         // extend the withdraw period 24 hours
         unlockTime[msg.sender] = block.timestamp + withdrawWindow;
-        // increment the total withdraw amount
-        totalRequestedWithdraws += amount;
+
+        // alert the strategy of the pending withdraw
+        strategy.requestWithdraw(amount);
     }
 }

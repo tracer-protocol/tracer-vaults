@@ -427,29 +427,6 @@ describe("VaultV1", async () => {
                 parseInt(timestampBefore.toString()) + 86500
             )
         })
-
-        it("updates the total withdraw amount", async () => {
-            // deposit from a second account
-            await underlying
-                .connect(accounts[1])
-                .approve(vault.address, ethers.utils.parseEther("1"))
-            await vault
-                .connect(accounts[1])
-                .deposit(ethers.utils.parseEther("1"), accounts[1].address)
-
-            // mock strategy should have a value of 2 as there is a 1 ETH deposit in the beforeEach
-            // and a 1 ETH deposit above
-            await mockStrategy.setValue(ethers.utils.parseEther("2"))
-
-            await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
-            await vault
-                .connect(accounts[1])
-                .requestWithdraw(ethers.utils.parseEther("0.2"))
-            let totalWithdrawAmount = await vault.totalRequestedWithdraws()
-            expect(totalWithdrawAmount).to.be.equal(
-                ethers.utils.parseEther("0.7")
-            )
-        })
     })
 
     describe("setStrategy", async () => {
@@ -464,7 +441,7 @@ describe("VaultV1", async () => {
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("reverts if the strategy still has withdrawable funds", async() => {
+        it("reverts if the strategy still has withdrawable funds", async () => {
             // set value to 1 and withdrawable to be 0
             await mockStrategy.setValue(ethers.utils.parseEther("1"))
             await expect(
@@ -472,11 +449,14 @@ describe("VaultV1", async () => {
             ).to.be.revertedWith("strategy still active")
         })
 
-        it("reverts if the strategy still has value", async() => {
+        it("reverts if the strategy still has value", async () => {
             // set value to 0 and withdrawable to 1
             // note: in "normal" strategy conditions you would never expect to see this case
             await mockStrategy.setValue(ethers.utils.parseEther("0"))
-            await underlying.transfer(mockStrategy.address, ethers.utils.parseEther("1"))
+            await underlying.transfer(
+                mockStrategy.address,
+                ethers.utils.parseEther("1")
+            )
             await expect(
                 vault.setStrategy(accounts[1].address)
             ).to.be.revertedWith("strategy still active")
