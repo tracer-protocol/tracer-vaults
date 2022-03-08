@@ -25,6 +25,9 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     mapping(address => bool) public whitelist;
     mapping(address => bool) public assetWhitelist;
 
+    // withdraw logic
+    uint256 public totalRequestedWithdraws;
+
     // events
     event FUNDS_REQUEST(uint256 amount, address collateral);
 
@@ -72,11 +75,19 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     }
 
     /**
+     * @notice allows the vault to notify the strategy of a request to withdraw
+     * @param amount the amount being requested to withdraw
+     */
+    function requestWithdraw(uint256 amount) external override onlyVault {
+        totalRequestedWithdraws += amount;
+    }
+
+    /**
      * @notice withdraws a maximum of amount underlying from the strategy. Only callable
      * by the vault.
      * @param amount the amount of underlying tokens request to be withdrawn.
      */
-    function withdraw(uint256 amount) external override {
+    function withdraw(uint256 amount) external override onlyVault {
         require(msg.sender == VAULT, "only vault can withdraw");
         // 1. Compute amount available to be transfered. Cap at balance of the strategy
         uint256 currentBalance = VAULT_ASSET.balanceOf(address(this));
@@ -90,6 +101,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         }
 
         // 3. perform transfer
+        totalRequestedWithdraws -= amount;
         VAULT_ASSET.transfer(VAULT, amountToTransfer);
     }
 
@@ -105,7 +117,14 @@ contract PermissionedStrategy is IStrategy, AccessControl {
      */
     function pullAsset(uint256 amount, address asset) public onlyWhitelisted(asset) {
         IERC20 _asset = IERC20(asset);
-        require(amount <= _asset.balanceOf(address(this)), "INSUFFICIENT FUNDS");
+        uint256 currentAssetBal = _asset.balanceOf(address(this));
+        require(amount <= currentAssetBal, "INSUFFICIENT FUNDS");
+
+        // if the asset is the vault asset, require we have enough to pay out the requested withdraws
+        if (asset == address(VAULT_ASSET)) {
+            require(currentAssetBal >= totalRequestedWithdraws, "asset needed for withdraws");
+        }
+
         // update accounting
         debts[msg.sender][asset] += amount;
         totalDebt[asset] += amount;
@@ -121,7 +140,6 @@ contract PermissionedStrategy is IStrategy, AccessControl {
      * @param asset the asset being returned
      */
     function returnAsset(uint256 amount, address asset) public onlyWhitelisted(asset) {
-        // todo: Need to think about recording PnL here
         // update accounting
         uint256 _senderDebt = debts[msg.sender][asset];
         uint256 _totalDebt = totalDebt[asset];
@@ -173,6 +191,11 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     modifier onlyWhitelisted(address asset) {
         require(whitelist[msg.sender], "SENDER_NOT_WL");
         require(assetWhitelist[asset], "ASSET_NOT_WL");
+        _;
+    }
+
+    modifier onlyVault() {
+        require(msg.sender == VAULT, "only vault can withdraw");
         _;
     }
 }
