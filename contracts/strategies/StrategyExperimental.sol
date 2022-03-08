@@ -6,21 +6,20 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 //Just another strategy idea to test our current assumptions
 //Maintains accounting records of inflows and outflows in a struct
-contract StrategyExperimental is IStrategy {
-    
+abstract contract StrategyExperimental is IStrategy {
     //strategist inflow/outflow records
     struct Target {
         address pool;
-        uint Amount;
+        uint256 Amount;
     }
-    
+
     IERC20 public immutable VAULT_ASSET;
     address public owner;
     address public pool;
     address public strategist;
     address public vault;
     uint256 public totalDebt;
-    
+
     //asset whitelist
     mapping(address => bool) AssetWhitelist;
 
@@ -28,12 +27,17 @@ contract StrategyExperimental is IStrategy {
     mapping(uint256 => Target) TSRI;
     //timstamped Records OUT
     mapping(uint256 => Target) TSRO;
-    constructor(address _owner, address _strategist, IERC20 _vaultAsset) {
+
+    constructor(
+        address _owner,
+        address _strategist,
+        IERC20 _vaultAsset
+    ) {
         owner = _owner;
         strategist = _strategist;
         VAULT_ASSET = _vaultAsset;
     }
-    
+
     //Sets the vault address
     function setVault(address _vault) public {
         require(msg.sender == owner);
@@ -41,8 +45,8 @@ contract StrategyExperimental is IStrategy {
     }
 
     //Returns strategy value + outstanding debt
-    function value() public view returns (uint256) {
-        return  VAULT_ASSET.balanceOf(address(this)) + totalDebt;
+    function value() public view override returns (uint256) {
+        return VAULT_ASSET.balanceOf(address(this)) + totalDebt;
     }
 
     //Returns funds held in this strategy
@@ -80,10 +84,15 @@ contract StrategyExperimental is IStrategy {
     }
 
     //Logic for strategist to return funds to vault accounting for debts
-    function returnAsset(uint256 amount, address asset, address _pool) public onlyStrategist{
-        if(amount >= totalDebt) {
+    function returnAsset(
+        uint256 amount,
+        address asset,
+        address _pool
+    ) public onlyStrategist {
+        if (amount >= totalDebt) {
             totalDebt = 0;
-        } if(amount < totalDebt) {
+        }
+        if (amount < totalDebt) {
             totalDebt -= amount;
         }
         //account for inflows
@@ -92,10 +101,10 @@ contract StrategyExperimental is IStrategy {
         IERC20(asset).transferFrom(msg.sender, address(this), amount);
         emit FundsReturn(_pool, amount);
     }
-    
+
     //Events
     event FundsPulled(address _pool, uint256 _amount);
-    event FundsReturn(address indexed pool, uint amount);
+    event FundsReturn(address indexed pool, uint256 amount);
     event FUNDS_REQUEST(uint256 amount, address collateral);
 
     //setters and modifiers
@@ -103,10 +112,9 @@ contract StrategyExperimental is IStrategy {
         require(msg.sender == owner);
         AssetWhitelist[asset] = permission;
     }
-    
+
     modifier onlyStrategist() {
         require(msg.sender == strategist, "SENDER_NOT_STRATEGIST");
-    _;
+        _;
     }
-
 }
