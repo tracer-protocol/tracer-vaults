@@ -101,8 +101,14 @@ describe.only("VaultV1 + Strategy", async () => {
     describe("withdraw", async () => {
         beforeEach(async () => {
             // approve and deposit into vault
-            await underlying.approve(vault.address, ethers.utils.parseEther("10"))
-            await vault.deposit(ethers.utils.parseEther("10"), accounts[0].address)
+            await underlying.approve(
+                vault.address,
+                ethers.utils.parseEther("10")
+            )
+            await vault.deposit(
+                ethers.utils.parseEther("10"),
+                accounts[0].address
+            )
         })
 
         it("reverts if the caller is not the vault", async () => {
@@ -178,7 +184,11 @@ describe.only("VaultV1 + Strategy", async () => {
             await vault.requestWithdraw(ethers.utils.parseEther("5"))
 
             await expect(
-                vault.withdraw(ethers.utils.parseEther("2"), accounts[0].address, accounts[0].address)
+                vault.withdraw(
+                    ethers.utils.parseEther("2"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
             ).to.be.revertedWith("withdraw locked")
         })
     })
