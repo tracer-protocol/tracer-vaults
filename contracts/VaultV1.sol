@@ -15,15 +15,16 @@ contract VaultV1 is ERC4626, Ownable {
     ERC20 public immutable underlying;
     //the strategy address
     IStrategy public strategy;
+    //does a strategy exist
+    bool public strategyExists;
 
     // Withdraw locking params
     mapping(address => uint256) public requestedWithdraws;
     mapping(address => uint256) public unlockTime;
     uint256 public withdrawWindow = 24 hours;
 
-    constructor(ERC20 _underlying, address _strategy) ERC4626(_underlying, "TracerVault", "TVLT") {
+    constructor(ERC20 _underlying) ERC4626(_underlying, "TracerVault", "TVLT") {
         underlying = ERC20(_underlying);
-        strategy = IStrategy(_strategy);
     }
 
     function totalAssets() public view override returns (uint256) {
@@ -32,10 +33,15 @@ contract VaultV1 is ERC4626, Ownable {
     }
 
     //sets the strategy address to send funds
-    //Funds get sent to strategy address(controlled by bot)
     function setStrategy(address _strategy) public onlyOwner {
-        require(strategy.withdrawable() == 0 && strategy.value() == 0, "strategy still active");
+        //acounts for if a strategy exists, if not, create a new one
+        if (strategyExists) {
+            //require strategy holds no funds
+            require(strategy.withdrawable() == 0 && strategy.value() == 0, "strategy still active");
+            strategy = IStrategy(_strategy);
+        }
         strategy = IStrategy(_strategy);
+        strategyExists = true;
     }
 
     //sends funds from the vault to the strategy address

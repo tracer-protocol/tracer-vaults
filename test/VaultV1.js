@@ -24,12 +24,10 @@ describe("VaultV1", async () => {
         }
 
         mockStrategy = await strategyFactory.deploy()
-        vault = await vaultFactory.deploy(
-            underlying.address,
-            mockStrategy.address
-        )
+        vault = await vaultFactory.deploy(underlying.address)
 
         await mockStrategy.init(vault.address, underlying.address)
+        await vault.setStrategy(mockStrategy.address)
     })
 
     describe("constructor", async () => {
