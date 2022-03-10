@@ -46,7 +46,7 @@ describe.only("VaultV1 + Strategy", async () => {
             accounts[0].address, // mock pool as accounts 0
             mockShortToken.address,
             underlying.address,
-            accounts[0].address // mock vault as accounts 0
+            vault.address // mock vault as accounts 0
         )
 
         // whitelist account 1 to push and pull funds
@@ -100,7 +100,9 @@ describe.only("VaultV1 + Strategy", async () => {
     })
     describe("withdraw", async () => {
         beforeEach(async () => {
-            underlying.transfer(strategy.address, ethers.utils.parseEther("10"))
+            // approve and deposit into vault
+            await underlying.approve(vault.address, ethers.utils.parseEther("10"))
+            await vault.deposit(ethers.utils.parseEther("10"), accounts[0].address)
         })
 
         it("reverts if the caller is not the vault", async () => {
@@ -171,6 +173,13 @@ describe.only("VaultV1 + Strategy", async () => {
                 strategy.withdraw(ethers.utils.parseEther("1"))
             ).to.be.revertedWith("withdrawing more than requested")
         })
-        //todo test withdraw fails if request window not passed
+
+        it("reverts if the request window time has not passed", async () => {
+            await vault.requestWithdraw(ethers.utils.parseEther("5"))
+
+            await expect(
+                vault.withdraw(ethers.utils.parseEther("2"), accounts[0].address, accounts[0].address)
+            ).to.be.revertedWith("withdraw locked")
+        })
     })
 })
