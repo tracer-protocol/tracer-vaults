@@ -40,7 +40,6 @@ describe.only("VaultV1 + Strategy", async () => {
             )
         }
 
-        
         vault = await vaultFactory.deploy(underlying.address)
 
         strategy = await strategyFactory.deploy(
@@ -70,9 +69,7 @@ describe.only("VaultV1 + Strategy", async () => {
 
         it("distributes funds to the strategies", async () => {
             // 100% of funds go to the strategy
-            let strategyBalance = await underlying.balanceOf(
-                strategy.address
-            )
+            let strategyBalance = await underlying.balanceOf(strategy.address)
 
             assert.equal(
                 strategyBalance.toString(),
