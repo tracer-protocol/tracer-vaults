@@ -42,7 +42,7 @@ contracts
 Each vault may have many strategies associated with it, and may allocate capital to strategies via admin controls. 
 ### Withdraw Process
 #### V1 Withdraw Process
-The V1 withdraw process has been reduced to its simplist form.
+The V1 withdraw process has been reduced to its simplest form.
 
 The following are the steps
 - A user requests a withdraw with the vault. This increases their pending withdraw limit as well as the `totalRequestedWithdraws`. This user is unable to withdraw for 24 hours.
