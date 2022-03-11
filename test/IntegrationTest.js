@@ -1,7 +1,7 @@
 const { expect, assert } = require("chai")
 const { network, ethers } = require("hardhat")
 
-describe.only("VaultV1 + Strategy", async () => {
+describe("VaultV1 + Strategy", async () => {
     let vault
     let vaultFactory
     let owner
@@ -65,6 +65,13 @@ describe.only("VaultV1 + Strategy", async () => {
                 ethers.utils.parseEther("1"),
                 accounts[0].address
             )
+        })
+        //preview deposit
+        it("preview deposit", async () => {
+            let deposit = await vault.previewDeposit(
+                ethers.utils.parseEther("1")
+            )
+            expect(deposit).to.equal(ethers.utils.parseEther("1"))
         })
 
         it("distributes funds to the strategies", async () => {
@@ -142,6 +149,13 @@ describe.only("VaultV1 + Strategy", async () => {
                     accounts[0].address
                 )
             ).to.be.revertedWith("withdraw locked")
+        })
+        //preview withdraw
+        it("preview withdraw", async () => {
+            let withdraw = await vault.previewWithdraw(
+                ethers.utils.parseEther("1")
+            )
+            expect(withdraw).to.equal(ethers.utils.parseEther("1"))
         })
     })
 })
