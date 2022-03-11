@@ -119,65 +119,13 @@ describe.only("VaultV1 + Strategy", async () => {
             ).to.be.revertedWith("only vault can withdraw")
         })
 
-        it("caps the amount at the current balance", async () => {
-            // request withdraw first
-            await strategy.requestWithdraw(ethers.utils.parseEther("15"))
-
-            let vaultBalanceBefore = await underlying.balanceOf(
-                accounts[0].address
-            )
-
-            await strategy.withdraw(ethers.utils.parseEther("15"))
-
-            let vaultBalanceAfter = await underlying.balanceOf(
-                accounts[0].address
-            )
-
-            // only withdraws 10 as that is the balance of the strategy
-            expect(
-                vaultBalanceAfter.sub(vaultBalanceBefore).toString()
-            ).to.equal(ethers.utils.parseEther("10").toString())
-        })
-
-        it("transfers funds back to the vault", async () => {
-            // request withdraw first
-            await strategy.requestWithdraw(ethers.utils.parseEther("1"))
-
-            let vaultBalanceBefore = await underlying.balanceOf(
-                accounts[0].address
-            )
-
-            await strategy.withdraw(ethers.utils.parseEther("1"))
-
-            let vaultBalanceAfter = await underlying.balanceOf(
-                accounts[0].address
-            )
-
-            // only withdraws 10 as that is the balance of the strategy
-            expect(
-                vaultBalanceAfter.sub(vaultBalanceBefore).toString()
-            ).to.equal(ethers.utils.parseEther("1").toString())
-        })
-
-        it("reduces the requested withdraw amount", async () => {
-            await strategy.requestWithdraw(ethers.utils.parseEther("5"))
-            let requestedWithdrawBefore =
-                await strategy.totalRequestedWithdraws()
-
-            await strategy.withdraw(ethers.utils.parseEther("2"))
-
-            let requestedWithdrawAfter =
-                await strategy.totalRequestedWithdraws()
-
-            expect(
-                requestedWithdrawBefore.sub(requestedWithdrawAfter).toString()
-            ).to.equal(ethers.utils.parseEther("2").toString())
-        })
-
-        it("reverts if amount is greater than the total requested withdraw amount", async () => {
+        it("Allows withdraw after window passed", async () => {
+            await vault.requestWithdraw(ethers.utils.parseEther("2"))
+            await ethers.provider.send("evm_increaseTime", [86401])
+            await ethers.provider.send("evm_mine")
             await expect(
-                strategy.withdraw(ethers.utils.parseEther("1"))
-            ).to.be.revertedWith("withdrawing more than requested")
+                vault.withdraw(ethers.utils.parseEther("2"), accounts[0].address, accounts[0].address))
+                .to.emit(vault, "Withdraw")
         })
 
         it("reverts if the request window time has not passed", async () => {
