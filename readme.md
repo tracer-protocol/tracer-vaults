@@ -27,19 +27,27 @@ yarn run coverage
 
 ```ml
 contracts
-├─ test
-│  └─ Greeter.t — "Greeter Tests"
-├─ interfaces
-│  └─ IERC4626.sol — "ERC4626 Interface"
-|  └─ IERC4626TRACER.sol — "ERC4626TRACER Interface"
-└─ Vault — "A modified ERC4626 Vault"
+ ┣ interfaces
+ ┃ ┣ IERC4626.sol
+ ┃ ┣ IERC4626Router.sol
+ ┃ ┣ IStrategy.sol
+ ┃ ┗ ITracerVault.sol
+ ┣ strategies
+ ┃ ┗ PermissionedStrategy.sol
+ ┣ utils
+ ┃ ┣ ERC4626.sol
+ ┃ ┣ FixedPointMathLib.sol
+ ┃ ┣ MockStrategy.sol
+ ┃ ┗ TestERC20.sol
+ ┣ VaultV1.sol
+ ┗ VaultV2.sol
 
 ```
 
 ## Vaults
-`Vault.sol` is the core contract in charge of managing strategies involved in generating yield for the Tracer protocol.
+`VaultV1.sol` is the core contract in charge of managing strategies involved in generating yield for the Tracer protocol.
 
-Each vault may have many strategies associated with it, and may allocate capital to strategies via admin controls. 
+The Vault sends funds to a Strategy which must be set using `setStrategy` after deploying a vault.
 ### Withdraw Process
 #### V1 Withdraw Process
 The V1 withdraw process has been reduced to its simplest form.
@@ -50,4 +58,5 @@ The following are the steps
 - The user is then able to withdraw 24 hours later. If funds are not available on hand this withdraw will revert.
 
 ## Strategies
-Todo.
+Strategy contract recieves funds from the Vault after a successful deposit.
+Returning funds to the vault must be conducted using the `returnAsset` function, ensuring correct accounting in the vault
