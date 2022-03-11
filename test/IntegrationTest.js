@@ -124,8 +124,12 @@ describe.only("VaultV1 + Strategy", async () => {
             await ethers.provider.send("evm_increaseTime", [86401])
             await ethers.provider.send("evm_mine")
             await expect(
-                vault.withdraw(ethers.utils.parseEther("2"), accounts[0].address, accounts[0].address))
-                .to.emit(vault, "Withdraw")
+                vault.withdraw(
+                    ethers.utils.parseEther("2"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.emit(vault, "Withdraw")
         })
 
         it("reverts if the request window time has not passed", async () => {
