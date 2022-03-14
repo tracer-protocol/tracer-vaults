@@ -45,7 +45,7 @@ contract VaultV1 is ERC4626, Ownable {
     }
 
     //sends funds from the vault to the strategy address
-    function afterDeposit(uint256 amount) internal virtual override {
+    function afterDeposit(uint256 amount, uint256 shares) internal virtual override {
         underlying.safeTransfer(address(strategy), amount);
     }
 
@@ -54,7 +54,7 @@ contract VaultV1 is ERC4626, Ownable {
      * @dev pulls as many funds from the strategy as possible. If not enough funds are on hand, will revert.
      * @dev the withdrawer must have requested to withdraw 24 hours before withdrawing
      */
-    function beforeWithdraw(uint256 amount) internal virtual override {
+    function beforeWithdraw(uint256 amount, uint256 shares) internal virtual override {
         // require the user has atleast this much amount pending for withdraw
         // require the users unlock time is in the past
         require(
