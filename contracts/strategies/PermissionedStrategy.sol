@@ -105,6 +105,14 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         VAULT_ASSET.transfer(VAULT, amountToTransfer);
     }
 
+    /**
+     * @notice deposits into the strategy
+     * @dev this hook can be used to update and strategy state / deposit into external contracts
+     */
+    function deposit(uint256 amount) external override onlyVault {
+        // no deposit hook required for this strategy
+    }
+
     /*///////////////////////////////////////////////////////////////
                             External Access Functions
     //////////////////////////////////////////////////////////////*/

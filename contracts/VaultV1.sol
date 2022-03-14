@@ -47,6 +47,8 @@ contract VaultV1 is ERC4626, Ownable {
     //sends funds from the vault to the strategy address
     function afterDeposit(uint256 amount) internal virtual override {
         underlying.safeTransfer(address(strategy), amount);
+        // notify the strategy
+        strategy.deposit(amount);
     }
 
     /**
