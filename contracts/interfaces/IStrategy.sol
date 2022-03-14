@@ -27,9 +27,9 @@ interface IStrategy {
     function withdraw(uint256 amount) external;
 
     /**
-    * @notice deposits into the strategy
-    * @dev this hook can be used to update and strategy state / deposit into external contracts
-    */
+     * @notice deposits into the strategy
+     * @dev this hook can be used to update and strategy state / deposit into external contracts
+     */
     function deposit(uint256 amount) external;
 
     function requestWithdraw(uint256 amount) external;
