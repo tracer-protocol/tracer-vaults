@@ -196,7 +196,7 @@ describe("VaultV1", async () => {
             ).to.be.reverted
         })
 
-        it("reverts if the user has insufficient requested amounts", async () => {
+        it.only("reverts if the user has insufficient requested amounts", async () => {
             await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
 
             // fast forward time 25 hours
@@ -204,12 +204,12 @@ describe("VaultV1", async () => {
             await ethers.provider.send("evm_mine")
 
             await expect(
-                vault.redeem(
+                vault.withdraw(
                     ethers.utils.parseEther("1"),
                     accounts[0].address,
                     accounts[0].address
                 )
-            ).to.be.revertedWith("withdraw locked")
+            ).to.be.revertedWith("insufficient requested amount")
         })
 
         it("reverts if the user withdraws too early after a request", async () => {

@@ -57,10 +57,8 @@ contract VaultV1 is ERC4626, Ownable {
     function beforeWithdraw(uint256 amount) internal virtual override {
         // require the user has atleast this much amount pending for withdraw
         // require the users unlock time is in the past
-        require(
-            requestedWithdraws[msg.sender] >= amount && unlockTime[msg.sender] <= block.timestamp,
-            "withdraw locked"
-        );
+        require(unlockTime[msg.sender] <= block.timestamp, "withdraw locked");
+        require(requestedWithdraws[msg.sender] >= amount, "insufficient requested amount");
 
         // all funds are stored in strategy. See how much can be pulled
         if (strategy.withdrawable() < amount) {
