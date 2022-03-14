@@ -59,4 +59,4 @@ The following are the steps
 
 ## Strategies
 Strategy contract recieves funds from the Vault after a successful deposit.
-Returning funds to the vault must be conducted using the `returnAsset` function, ensuring correct accounting in the vault
+Returning funds to the vault must be conducted using the `returnAsset` function, ensuring correct accounting in the vault.
