@@ -101,7 +101,10 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         }
 
         // 3. perform transfer
-        totalRequestedWithdraws -= amount;
+        // amount <= totalRequestedWithdraws
+        unchecked {
+            totalRequestedWithdraws -= amount;
+        }
         VAULT_ASSET.transfer(VAULT, amountToTransfer);
     }
 
