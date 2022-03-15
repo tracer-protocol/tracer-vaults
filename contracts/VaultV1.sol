@@ -11,17 +11,17 @@ import "./interfaces/IStrategy.sol";
 contract VaultV1 is ERC4626, Ownable {
     using SafeTransferLib for ERC20;
 
-    //the underlying token the vault accepts
+    // the underlying token the vault accepts
     ERC20 public immutable underlying;
-    //the strategy address
+    // the strategy address
     IStrategy public strategy;
-    //does a strategy exist
-    bool public strategyExists;
 
     // Withdraw locking params
     mapping(address => uint256) public requestedWithdraws;
     mapping(address => uint256) public unlockTime;
-    uint256 public withdrawWindow = 24 hours;
+    uint8 public constant withdrawWindow = 24 hours;
+
+    bool public strategyExists;
 
     constructor(ERC20 _underlying) ERC4626(_underlying, "TracerVault", "TVLT") {
         underlying = ERC20(_underlying);
