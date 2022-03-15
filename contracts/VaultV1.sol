@@ -19,7 +19,7 @@ contract VaultV1 is ERC4626, Ownable {
     // Withdraw locking params
     mapping(address => uint256) public requestedWithdraws;
     mapping(address => uint256) public unlockTime;
-    uint8 public constant withdrawWindow = 24 hours;
+    uint32 public constant withdrawWindow = 24 hours;
 
     bool public strategyExists;
 
@@ -62,7 +62,7 @@ contract VaultV1 is ERC4626, Ownable {
         require(requestedWithdraws[msg.sender] >= amount, "insufficient requested amount");
 
         // all funds are stored in strategy. See how much can be pulled
-        require(strategy.withdrawable() >= amount, "not enough funds in vault")'
+        require(strategy.withdrawable() >= amount, "not enough funds in vault");
 
         // update the users requested withdraw status
         requestedWithdraws[msg.sender] = 0;
