@@ -49,8 +49,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
     }
 
     function value() external view override returns (uint256) {
-        // collateral on hand + outstanding debt from external contracts denoted in the vault asset
-        // todo -> we may need to account for short tokens that are currently with any bot
+        // assets in curve + perpetual pool tokens
         return 0;
     }
 
@@ -83,7 +82,23 @@ contract PermissionedStrategy is IStrategy, AccessControl {
      * @param amount the amount of underlying tokens request to be withdrawn.
      */
     function withdraw(uint256 amount) external override onlyVault {
-        // todo
+        // get value without current curve rewards
+
+        // close out perpetual pools position if needed to perform withdraw
+
+        // take fees to the DAO
+    }
+
+    /**
+     * @notice deposits into the strategy
+     * @dev this hook can be used to update and strategy state / deposit into external contracts
+     */
+    function deposit(uint256 amount) external override onlyVault {
+        // deposit funds into curve
+
+        // check curve gauges
+
+        // harvest rewards if needed and open new positions
     }
 
     /*///////////////////////////////////////////////////////////////
