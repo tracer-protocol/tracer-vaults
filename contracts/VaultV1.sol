@@ -64,12 +64,12 @@ contract VaultV1 is ERC4626, Ownable {
         // all funds are stored in strategy. See how much can be pulled
         require(strategy.withdrawable() >= amount, "not enough funds in vault")'
 
-        // pull funds from strategy so they can be returned to the user
-        strategy.withdraw(amount);
-
         // update the users requested withdraw status
         requestedWithdraws[msg.sender] = 0;
         unlockTime[msg.sender] = 0;
+
+        // pull funds from strategy so they can be returned to the user
+        strategy.withdraw(amount);
     }
 
     /**
