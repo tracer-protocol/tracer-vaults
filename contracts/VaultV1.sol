@@ -38,7 +38,6 @@ contract VaultV1 is ERC4626, Ownable {
         if (strategyExists) {
             //require strategy holds no funds
             require(strategy.withdrawable() == 0 && strategy.value() == 0, "strategy still active");
-            strategy = IStrategy(_strategy);
         }
         strategy = IStrategy(_strategy);
         strategyExists = true;
