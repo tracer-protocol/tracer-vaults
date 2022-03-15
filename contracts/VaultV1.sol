@@ -33,7 +33,7 @@ contract VaultV1 is ERC4626, Ownable {
     }
 
     //sets the strategy address to send funds
-    function setStrategy(address _strategy) public onlyOwner {
+    function setStrategy(address _strategy) external onlyOwner {
         //acounts for if a strategy exists, if not, create a new one
         if (strategyExists) {
             //require strategy holds no funds
