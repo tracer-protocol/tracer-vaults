@@ -14,7 +14,7 @@ contract VaultV2 is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     using FixedPointMathLib for uint256;
 
     ERC20 public immutable UNDERLYING;
-    uint256 public BASE_UNIT;
+    uint256 public immutable BASE_UNIT;
 
     // strategy variables
     address[] public strategies;
@@ -47,7 +47,7 @@ contract VaultV2 is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
             sumPercent += percent;
             percentAllocations.push(percent);
         }
-        require(sumPercent <= BASE_UNIT, "PERC_SUM_MAX");
+        require(sumPercent <= baseUnit, "PERC_SUM_MAX");
     }
 
     /**
