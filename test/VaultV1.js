@@ -28,6 +28,8 @@ describe("VaultV1", async () => {
 
         await mockStrategy.init(vault.address, underlying.address)
         await vault.setStrategy(mockStrategy.address)
+        await vault.setWhiteList(accounts[0].address)
+        await vault.setWhiteList(accounts[1].address)
     })
 
     describe("constructor", async () => {

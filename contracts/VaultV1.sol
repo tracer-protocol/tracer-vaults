@@ -47,8 +47,8 @@ contract VaultV1 is ERC4626, Ownable, AccessControl {
         strategyExists = true;
     }
 
-    function setWhiteList(address _addr, bool _whiteList) external onlyRole(GOV) {
-        whiteList[_addr] = _whiteList;
+    function setWhiteList(address _addr) external onlyRole(GOV) {
+        whiteList[_addr] = true;
     }
 
     //sends funds from the vault to the strategy address
