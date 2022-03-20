@@ -28,8 +28,8 @@ describe("VaultV1", async () => {
 
         await mockStrategy.init(vault.address, underlying.address)
         await vault.setStrategy(mockStrategy.address)
-        await vault.setWhiteList(accounts[0].address)
-        await vault.setWhiteList(accounts[1].address)
+        await vault.setWhiteList(accounts[0].address, true)
+        await vault.setWhiteList(accounts[1].address, true)
     })
 
     describe("constructor", async () => {
@@ -83,6 +83,12 @@ describe("VaultV1", async () => {
                 vault
                     .connect(accounts[1])
                     .deposit(ethers.utils.parseEther("1"), accounts[1].address)
+            ).to.be.reverted
+        })
+        it("Reverts if caller not whitelisted", async () => {
+            await expect(
+                vault.connect(accounts[2])
+                .deposit(ethers.utils.parseEther("1"), accounts[2].address)
             ).to.be.reverted
         })
     })

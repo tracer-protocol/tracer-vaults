@@ -1,7 +1,7 @@
 const { expect, assert } = require("chai")
 const { network, ethers } = require("hardhat")
 
-describe.only("VaultV1 + Strategy", async () => {
+describe("VaultV1 + Strategy", async () => {
     let vault
     let vaultFactory
     let owner
@@ -53,8 +53,8 @@ describe.only("VaultV1 + Strategy", async () => {
         strategy.setWhitelist(accounts[1].address, true)
         //set initial strategy
         await vault.setStrategy(strategy.address)
-        await vault.setWhiteList(accounts[0].address)
-        await vault.setWhiteList(accounts[1].address)
+        await vault.setWhiteList(accounts[0].address, true)
+        await vault.setWhiteList(accounts[1].address, true)
     })
 
     describe("deposit", async () => {
