@@ -87,8 +87,9 @@ describe("VaultV1", async () => {
         })
         it("Reverts if caller not whitelisted", async () => {
             await expect(
-                vault.connect(accounts[2])
-                .deposit(ethers.utils.parseEther("1"), accounts[2].address)
+                vault
+                    .connect(accounts[2])
+                    .deposit(ethers.utils.parseEther("1"), accounts[2].address)
             ).to.be.reverted
         })
     })
