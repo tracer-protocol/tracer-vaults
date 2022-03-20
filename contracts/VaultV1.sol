@@ -2,13 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./utils/ERC4626.sol";
 import "./interfaces/IStrategy.sol";
 
 // An ERC4626 compliant vault that interacts with a strategy address
 // BUFFER is the minimun amount of tokens that can be stored in the vault and should
 // be compared with bufBal to determine if the vault neeed topup
-contract VaultV1 is ERC4626, Ownable {
+contract VaultV1 is ERC4626, Ownable, AccessControl {
     using SafeTransferLib for ERC20;
 
     // the underlying token the vault accepts
@@ -19,12 +20,15 @@ contract VaultV1 is ERC4626, Ownable {
     // Withdraw locking params
     mapping(address => uint256) public requestedWithdraws;
     mapping(address => uint256) public unlockTime;
+    mapping(address => bool) public whiteList;
     uint32 public constant withdrawWindow = 24 hours;
 
     bool public strategyExists;
+    bytes32 public constant GOV = keccak256("GOV_ROLE");
 
     constructor(ERC20 _underlying) ERC4626(_underlying, "TracerVault", "TVLT") {
         underlying = ERC20(_underlying);
+        _setupRole(GOV, msg.sender);
     }
 
     function totalAssets() public view override returns (uint256) {
@@ -43,8 +47,12 @@ contract VaultV1 is ERC4626, Ownable {
         strategyExists = true;
     }
 
+    function setWhiteList(address _addr, bool _whiteList) external onlyRole(GOV) {
+        whiteList[_addr] = _whiteList;
+    }
+
     //sends funds from the vault to the strategy address
-    function afterDeposit(uint256 amount) internal virtual override {
+    function afterDeposit(uint256 amount) internal virtual override onlyWhitelist {
         underlying.safeTransfer(address(strategy), amount);
         // notify the strategy
         strategy.deposit(amount);
@@ -55,7 +63,7 @@ contract VaultV1 is ERC4626, Ownable {
      * @dev pulls as many funds from the strategy as possible. If not enough funds are on hand, will revert.
      * @dev the withdrawer must have requested to withdraw 24 hours before withdrawing
      */
-    function beforeWithdraw(uint256 amount) internal virtual override {
+    function beforeWithdraw(uint256 amount) internal virtual override onlyWhitelist {
         // require the user has atleast this much amount pending for withdraw
         // require the users unlock time is in the past
         require(unlockTime[msg.sender] <= block.timestamp, "withdraw locked");
@@ -88,5 +96,10 @@ contract VaultV1 is ERC4626, Ownable {
 
         // alert the strategy of the pending withdraw
         strategy.requestWithdraw(amount);
+    }
+
+    modifier onlyWhitelist() {
+        require(whiteList[msg.sender], "only whitelisted addresses can use vault");
+        _;
     }
 }
