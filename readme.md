@@ -59,6 +59,7 @@ The following are the steps
 - A user requests a withdraw with the vault. This increases their pending withdraw limit as well as the `totalRequestedWithdraws`. This user is unable to withdraw for 24 hours.
 - the strategy has 24 hours in which these funds should be liquidated. This will increase the `withdrawable` amount of the strategy.
 - The user is then able to withdraw 24 hours later. If funds are not available on hand this withdraw will revert.
+```
                                     no(throw)
          requestWithdraw            ▲
 ┌───────┬─────────────►┌─────────┐  │
@@ -67,12 +68,13 @@ The following are the steps
 └─────▲─┴──withdraw?──►└─────────┴─┬────────────┘
       │                            │
       └────Withdraw◄──────────────YES
-
+```
 ## Strategies
 Strategy contract recieves funds from the Vault after a successful deposit.
 Returning funds to the vault must be conducted using the `returnAsset` function, ensuring correct accounting in the vault.
 
 ## Diagram
+```
                    ┌──────────┐
                    │          │
                    │  USER    │
@@ -97,3 +99,4 @@ Returning funds to the vault must be conducted using the `returnAsset` function,
                      │             │         │   SKEWFARM   │
                      │             │◄────────┤              │
                      └─────────────┘         └──────────────┘
+```
