@@ -4,6 +4,7 @@ require("@nomiclabs/hardhat-etherscan")
 require("hardhat-deploy")
 require("@nomiclabs/hardhat-ethers")
 require("solidity-coverage")
+require("hardhat-gas-reporter")
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
