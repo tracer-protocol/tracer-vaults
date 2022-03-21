@@ -14,7 +14,7 @@ contract VaultV2 is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
     using FixedPointMathLib for uint256;
 
     ERC20 public immutable UNDERLYING;
-    uint256 public BASE_UNIT;
+    uint256 public immutable BASE_UNIT;
 
     // strategy variables
     address[] public strategies;
@@ -22,12 +22,12 @@ contract VaultV2 is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
 
     constructor(
         address _underlying,
-        uint256 baseUnit,
+        uint256 _baseUnit,
         address[] memory _strategies,
         uint256[] memory _percentAllocations
     ) {
         UNDERLYING = ERC20(_underlying);
-        BASE_UNIT = baseUnit;
+        BASE_UNIT = _baseUnit;
 
         require(_strategies.length == _percentAllocations.length, "LEN_MISMATCH");
 
@@ -47,7 +47,7 @@ contract VaultV2 is ERC20("Tracer Vault Token", "TVT", 18), IERC4626, Ownable {
             sumPercent += percent;
             percentAllocations.push(percent);
         }
-        require(sumPercent <= BASE_UNIT, "PERC_SUM_MAX");
+        require(sumPercent <= _baseUnit, "PERC_SUM_MAX");
     }
 
     /**
