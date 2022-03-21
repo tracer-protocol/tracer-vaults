@@ -27,28 +27,36 @@ yarn run coverage
 
 ```ml
 contracts
-├─ test
-│  └─ Greeter.t — "Greeter Tests"
-├─ interfaces
-│  └─ IERC4626.sol — "ERC4626 Interface"
-|  └─ IERC4626TRACER.sol — "ERC4626TRACER Interface"
-└─ Vault — "A modified ERC4626 Vault"
+ ┣ interfaces
+ ┃ ┣ IERC4626.sol
+ ┃ ┣ IERC4626Router.sol
+ ┃ ┣ IStrategy.sol
+ ┃ ┗ ITracerVault.sol
+ ┣ strategies
+ ┃ ┗ PermissionedStrategy.sol
+ ┣ utils
+ ┃ ┣ ERC4626.sol
+ ┃ ┣ FixedPointMathLib.sol
+ ┃ ┣ MockStrategy.sol
+ ┃ ┗ TestERC20.sol
+ ┣ VaultV1.sol
+ ┗ VaultV2.sol
 
 ```
 
 ## Vaults
-`Vault.sol` is the core contract in charge of managing strategies involved in generating yield for the Tracer protocol.
+`VaultV1.sol` is the core contract in charge of managing strategies involved in generating yield for the Tracer protocol.
 
-Each vault may have many strategies associated with it, and may allocate capital to strategies via admin controls. 
+The Vault sends funds to a Strategy which must be set using `setStrategy` after deploying a vault.
 ### Withdraw Process
-The vault withdraw process is a critical piece of the vault itself. Due to the relationship between vaults and strategies, a vault is not expected to have access to liquid capital at all times. As such a withdraw process is used to ensure that users are able to withdraw their funds.
+#### V1 Withdraw Process
+The V1 withdraw process has been reduced to its simplest form.
 
-The process is as follows
-- the vault attempts to pay out a withdraw from its capital on hand.
-- If this isn't possible, the vault iterates through all its strategies and requests a withdraw of the outstanding capital (using `strategy.withdraw(amount)`). Each strategy will return as much capital as it can.
-- If the vault still does not have enough capital after iterating through all strategies, it will simply pay out what it can at that point and only burn a portion of the users shares.
-
-During this withdraw process, a strategy may choose to attempt to liquidate some of its positions in order to get this capital. This will mean that the next time the vault calls on a strategy, it should have more capital on hand to provide the vault.
+The following are the steps
+- A user requests a withdraw with the vault. This increases their pending withdraw limit as well as the `totalRequestedWithdraws`. This user is unable to withdraw for 24 hours.
+- the strategy has 24 hours in which these funds should be liquidated. This will increase the `withdrawable` amount of the strategy.
+- The user is then able to withdraw 24 hours later. If funds are not available on hand this withdraw will revert.
 
 ## Strategies
-Todo.
+Strategy contract recieves funds from the Vault after a successful deposit.
+Returning funds to the vault must be conducted using the `returnAsset` function, ensuring correct accounting in the vault.

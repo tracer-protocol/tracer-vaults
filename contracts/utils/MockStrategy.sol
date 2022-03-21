@@ -13,6 +13,9 @@ contract MockStrategy is IStrategy, AccessControl {
     // mock params for easy testing
     uint256 _value;
 
+    // withdraw logic
+    uint256 public requestedWithdraws;
+
     function init(address vault, address vaultAsset) public {
         VAULT = vault;
         VAULT_ASSET = IERC20(vaultAsset);
@@ -54,6 +57,12 @@ contract MockStrategy is IStrategy, AccessControl {
     }
 
     /**
+     * @notice deposits into the strategy
+     * @dev this hook can be used to update and strategy state / deposit into external contracts
+     */
+    function deposit(uint256 amount) external override {}
+
+    /**
      * @dev this function is helpful for testing. It allows you to arbitrarily move funds
      * out of a strategy
      */
@@ -66,5 +75,29 @@ contract MockStrategy is IStrategy, AccessControl {
      */
     function setValue(uint256 newValue) external {
         _value = newValue;
+    }
+
+    /**
+     * @dev burns tokens to reduce the withdrawable amount
+     */
+    function setWithdrawable(uint256 newValue) external {
+        uint256 currentBal = VAULT_ASSET.balanceOf(address(this));
+        require(newValue <= currentBal, "new val too high");
+        VAULT_ASSET.transfer(msg.sender, currentBal - newValue);
+    }
+
+    /**
+     * @notice allows the vault to notify the strategy of a request to withdraw
+     * @param amount the amount being requested to withdraw
+     */
+    function requestWithdraw(uint256 amount) external override {
+        requestedWithdraws += amount;
+    }
+
+    /**
+     * @dev easy helper function for setting the requestedWithdraws amount
+     */
+    function setRequestedWithdraw(uint256 newAmount) external {
+        requestedWithdraws = newAmount;
     }
 }

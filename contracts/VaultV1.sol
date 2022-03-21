@@ -11,52 +11,43 @@ import "./interfaces/IStrategy.sol";
 contract VaultV1 is ERC4626, Ownable {
     using SafeTransferLib for ERC20;
 
-    //the underlying token the vault accepts
-    ERC20 public immutable UNDERLYING;
-    //the strategy address
-    IStrategy public STRATEGY;
-    //the buffer amount (indicates to bot the minimun amount of tokens that can be stored in the vault)
-    uint256 public BUFFER;
+    // the underlying token the vault accepts
+    ERC20 public immutable underlying;
+    // the strategy address
+    IStrategy public strategy;
 
     // Withdraw locking params
     mapping(address => uint256) public requestedWithdraws;
     mapping(address => uint256) public unlockTime;
-    uint256 public totalRequestedWithdraws;
-    uint256 public withdrawWindow = 24 hours;
+    uint32 public constant withdrawWindow = 24 hours;
 
-    constructor(ERC20 underlying, address strategy) ERC4626(underlying, "TracerVault", "TVLT") {
-        UNDERLYING = ERC20(underlying);
-        STRATEGY = IStrategy(strategy);
+    bool public strategyExists;
+
+    constructor(ERC20 _underlying) ERC4626(_underlying, "TracerVault", "TVLT") {
+        underlying = ERC20(_underlying);
     }
 
     function totalAssets() public view override returns (uint256) {
         // account for balances outstanding in bot/strategy, check balances
-        return UNDERLYING.balanceOf(address(this)) + STRATEGY.value();
+        return underlying.balanceOf(address(this)) + strategy.value();
     }
 
     //sets the strategy address to send funds
-    //Funds get sent to strategy address(controlled by bot)
-    function setStrategy(address strategy) public onlyOwner returns (bool) {
-        STRATEGY = IStrategy(strategy);
-        return true;
-    }
-
-    //sets the buffer amount to leave in vault
-    //Bot queries vault Balance and compares to buffer amount
-    function setBuffer(uint256 buffer) public onlyOwner returns (bool) {
-        BUFFER = buffer;
-        return true;
-    }
-
-    //returns current balance of underlying in vault (represents buffer amount)
-    function bufBalance() public view returns (uint256) {
-        return UNDERLYING.balanceOf(address(this));
+    function setStrategy(address _strategy) external onlyOwner {
+        //acounts for if a strategy exists, if not, create a new one
+        if (strategyExists) {
+            //require strategy holds no funds
+            require(strategy.withdrawable() == 0 && strategy.value() == 0, "strategy still active");
+        }
+        strategy = IStrategy(_strategy);
+        strategyExists = true;
     }
 
     //sends funds from the vault to the strategy address
     function afterDeposit(uint256 amount) internal virtual override {
-        //todo logic to distribute funds to Strategy (for bot)
-        UNDERLYING.safeTransfer(address(STRATEGY), amount);
+        underlying.safeTransfer(address(strategy), amount);
+        // notify the strategy
+        strategy.deposit(amount);
     }
 
     /**
@@ -67,25 +58,18 @@ contract VaultV1 is ERC4626, Ownable {
     function beforeWithdraw(uint256 amount) internal virtual override {
         // require the user has atleast this much amount pending for withdraw
         // require the users unlock time is in the past
-        require(
-            requestedWithdraws[msg.sender] >= amount && unlockTime[msg.sender] <= block.timestamp,
-            "withdraw locked"
-        );
+        require(unlockTime[msg.sender] <= block.timestamp, "withdraw locked");
+        require(requestedWithdraws[msg.sender] >= amount, "insufficient requested amount");
 
-        // check how much underlying we have "on hand"
-        uint256 startUnderlying = UNDERLYING.balanceOf(address(this));
-
-        if (startUnderlying < amount && STRATEGY.withdrawable() >= amount) {
-            // not enough on hand but enough in the strategy. withdraw
-            STRATEGY.withdraw(amount);
-        } else if (startUnderlying < amount) {
-            // not enough on hand. Not enough in strategy. Revert to be safe.
-            revert("not enough funds in vault");
-        }
+        // all funds are stored in strategy. See how much can be pulled
+        require(strategy.withdrawable() >= amount, "not enough funds in vault");
 
         // update the users requested withdraw status
         requestedWithdraws[msg.sender] = 0;
         unlockTime[msg.sender] = 0;
+
+        // pull funds from strategy so they can be returned to the user
+        strategy.withdraw(amount);
     }
 
     /**
@@ -101,7 +85,8 @@ contract VaultV1 is ERC4626, Ownable {
         requestedWithdraws[msg.sender] += amount;
         // extend the withdraw period 24 hours
         unlockTime[msg.sender] = block.timestamp + withdrawWindow;
-        // increment the total withdraw amount
-        totalRequestedWithdraws += amount;
+
+        // alert the strategy of the pending withdraw
+        strategy.requestWithdraw(amount);
     }
 }

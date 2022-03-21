@@ -24,19 +24,18 @@ describe("VaultV1", async () => {
         }
 
         mockStrategy = await strategyFactory.deploy()
-        vault = await vaultFactory.deploy(
-            underlying.address,
-            mockStrategy.address
-        )
+        vault = await vaultFactory.deploy(underlying.address)
 
         await mockStrategy.init(vault.address, underlying.address)
+        await vault.setStrategy(mockStrategy.address)
     })
 
     describe("constructor", async () => {
         it("records correct state variables", async () => {
-            // todo check all state variables are saved on constructor
             let asset = await vault.asset()
+            let strategy = await vault.strategy()
             assert.equal(asset, underlying.address)
+            assert.equal(strategy, mockStrategy.address)
         })
     })
 
@@ -51,15 +50,18 @@ describe("VaultV1", async () => {
                 accounts[0].address
             )
         })
+
         it("distributes funds to the strategies", async () => {
-            // 100% of funds go to strategy 0
+            // 100% of funds go to the strategy
             let strategyBalance = await underlying.balanceOf(
                 mockStrategy.address
             )
+
             assert.equal(
                 strategyBalance.toString(),
                 ethers.utils.parseEther("1").toString()
             )
+
             // 0% stay with the vault
             let vaultBalance = await underlying.balanceOf(vault.address)
             assert.equal(
@@ -183,6 +185,90 @@ describe("VaultV1", async () => {
                 )
             ).to.be.reverted
         })
+
+        it("reverts if the user has insufficient shares", async () => {
+            await expect(
+                vault.withdraw(
+                    ethers.utils.parseEther("2"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.reverted
+        })
+
+        it("reverts if the user has insufficient requested amounts", async () => {
+            await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
+
+            // fast forward time 25 hours
+            await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
+            await ethers.provider.send("evm_mine")
+
+            await expect(
+                vault.withdraw(
+                    ethers.utils.parseEther("1"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("insufficient requested amount")
+        })
+
+        it("reverts if the user withdraws too early after a request", async () => {
+            await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
+
+            // dont fast forward and try withdraw too early
+            await expect(
+                vault.withdraw(
+                    ethers.utils.parseEther("1"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("withdraw locked")
+        })
+
+        it("reverts if the vault does not have enough funds", async () => {
+            await underlying.balanceOf(accounts[0].address)
+
+            await vault.requestWithdraw(ethers.utils.parseEther("1"))
+
+            // fast forward time 25 hours
+            await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
+            await ethers.provider.send("evm_mine")
+
+            // get the mock strategy to loose money to simulate not enough funds
+            await mockStrategy.setWithdrawable(ethers.utils.parseEther("0.5"))
+
+            // withdraw all funds in the vault
+            await expect(
+                vault.withdraw(
+                    ethers.utils.parseEther("1"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("not enough funds in vault")
+        })
+
+        it("withdraws the correct amount of underlying given the users shares", async () => {
+            // note this test functions identically to withdraw since the ratio of shares: assets is 1:1
+            let startBalance = await underlying.balanceOf(accounts[0].address)
+
+            await vault.requestWithdraw(ethers.utils.parseEther("1"))
+
+            // fast forward time 25 hours
+            await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
+            await ethers.provider.send("evm_mine")
+
+            // withdraw all funds in the vault
+            await vault.withdraw(
+                ethers.utils.parseEther("0.05"),
+                accounts[0].address,
+                accounts[0].address
+            )
+            let endBalance = await underlying.balanceOf(accounts[0].address)
+            assert.equal(
+                endBalance.sub(startBalance).toString(),
+                ethers.utils.parseEther("0.05").toString()
+            )
+        })
     })
 
     describe("redeem", async () => {
@@ -212,6 +298,57 @@ describe("VaultV1", async () => {
             ).to.be.reverted
         })
 
+        it("reverts if the user has insufficient requested amounts", async () => {
+            await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
+
+            // fast forward time 25 hours
+            await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
+            await ethers.provider.send("evm_mine")
+
+            await expect(
+                vault.redeem(
+                    ethers.utils.parseEther("1"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("insufficient requested amount")
+        })
+
+        it("reverts if the user withdraws too early after a request", async () => {
+            await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
+
+            // dont fast forward and try withdraw too early
+            await expect(
+                vault.redeem(
+                    ethers.utils.parseEther("1"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("withdraw locked")
+        })
+
+        it("reverts if the vault does not have enough funds", async () => {
+            await underlying.balanceOf(accounts[0].address)
+
+            await vault.requestWithdraw(ethers.utils.parseEther("1"))
+
+            // fast forward time 25 hours
+            await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
+            await ethers.provider.send("evm_mine")
+
+            // get the mock strategy to loose money to simulate not enough funds
+            await mockStrategy.setWithdrawable(ethers.utils.parseEther("0.5"))
+
+            // withdraw all funds in the vault
+            await expect(
+                vault.redeem(
+                    ethers.utils.parseEther("1"),
+                    accounts[0].address,
+                    accounts[0].address
+                )
+            ).to.be.revertedWith("not enough funds in vault")
+        })
+
         it("withdraws the correct amount of underlying given the users shares", async () => {
             // note this test functions identically to withdraw since the ratio of shares: assets is 1:1
             let startBalance = await underlying.balanceOf(accounts[0].address)
@@ -236,7 +373,7 @@ describe("VaultV1", async () => {
         })
     })
 
-    describe("request withdraw", async () => {
+    describe("requestWithdraw", async () => {
         beforeEach(async () => {
             await underlying.approve(
                 vault.address,
@@ -258,7 +395,7 @@ describe("VaultV1", async () => {
             ).to.be.revertedWith("insufficient shares")
         })
 
-        it("reverts if the user withdraws multiple times within the withdraw period", async () => {
+        it("reverts if the user requests to withdraw multiple times within the withdraw period", async () => {
             await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
             await expect(
                 vault.requestWithdraw(ethers.utils.parseEther("2"))
@@ -288,28 +425,39 @@ describe("VaultV1", async () => {
                 parseInt(timestampBefore.toString()) + 86500
             )
         })
+    })
 
-        it("updates the total withdraw amount", async () => {
-            // deposit from a second account
-            await underlying
-                .connect(accounts[1])
-                .approve(vault.address, ethers.utils.parseEther("1"))
-            await vault
-                .connect(accounts[1])
-                .deposit(ethers.utils.parseEther("1"), accounts[1].address)
+    describe("setStrategy", async () => {
+        beforeEach(async () => {
+            // pretend the strategy has some value in it
+            mockStrategy.setValue(ethers.utils.parseEther("1"))
+        })
 
-            // mock strategy should have a value of 2 as there is a 1 ETH deposit in the beforeEach
-            // and a 1 ETH deposit above
-            await mockStrategy.setValue(ethers.utils.parseEther("2"))
+        it("reverts if not called by the owner", async () => {
+            await expect(
+                vault.connect(accounts[2]).setStrategy(accounts[1].address)
+            ).to.be.revertedWith("Ownable: caller is not the owner")
+        })
 
-            await vault.requestWithdraw(ethers.utils.parseEther("0.5"))
-            await vault
-                .connect(accounts[1])
-                .requestWithdraw(ethers.utils.parseEther("0.2"))
-            let totalWithdrawAmount = await vault.totalRequestedWithdraws()
-            expect(totalWithdrawAmount).to.be.equal(
-                ethers.utils.parseEther("0.7")
+        it("reverts if the strategy still has withdrawable funds", async () => {
+            // set value to 1 and withdrawable to be 0
+            await mockStrategy.setValue(ethers.utils.parseEther("1"))
+            await expect(
+                vault.setStrategy(accounts[1].address)
+            ).to.be.revertedWith("strategy still active")
+        })
+
+        it("reverts if the strategy still has value", async () => {
+            // set value to 0 and withdrawable to 1
+            // note: in "normal" strategy conditions you would never expect to see this case
+            await mockStrategy.setValue(ethers.utils.parseEther("0"))
+            await underlying.transfer(
+                mockStrategy.address,
+                ethers.utils.parseEther("1")
             )
+            await expect(
+                vault.setStrategy(accounts[1].address)
+            ).to.be.revertedWith("strategy still active")
         })
     })
 })
