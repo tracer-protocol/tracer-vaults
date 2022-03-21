@@ -26,6 +26,7 @@
         "@rari-capital/solmate": "^6.2.0",
         "@uniswap/v3-periphery": "^1.4.0",
         "hardhat-deploy": "^0.10.5",
+        "hardhat-gas-reporter": "^1.0.8",
         "solidity-coverage": "^0.7.20"
     }
 }
