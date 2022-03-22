@@ -9,7 +9,7 @@ import "./interfaces/IStrategy.sol";
 // An ERC4626 compliant vault that interacts with a strategy address
 // BUFFER is the minimun amount of tokens that can be stored in the vault and should
 // be compared with bufBal to determine if the vault neeed topup
-contract VaultV1 is ERC4626, Ownable, AccessControl {
+contract VaultV1 is ERC4626, Ownable {
     using SafeTransferLib for ERC20;
 
     // the underlying token the vault accepts
@@ -24,11 +24,9 @@ contract VaultV1 is ERC4626, Ownable, AccessControl {
     uint32 public constant withdrawWindow = 24 hours;
 
     bool public strategyExists;
-    bytes32 public constant GOV = keccak256("GOV_ROLE");
 
     constructor(ERC20 _underlying) ERC4626(_underlying, "TracerVault", "TVLT") {
         underlying = ERC20(_underlying);
-        _setupRole(GOV, msg.sender);
     }
 
     function totalAssets() public view override returns (uint256) {
@@ -47,7 +45,7 @@ contract VaultV1 is ERC4626, Ownable, AccessControl {
         strategyExists = true;
     }
 
-    function setWhiteList(address _addr, bool status) external onlyRole(GOV) {
+    function setWhiteList(address _addr, bool status) external onlyOwner {
         whiteList[_addr] = status;
     }
 

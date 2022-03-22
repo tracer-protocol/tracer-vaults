@@ -278,6 +278,28 @@ describe("VaultV1", async () => {
                 ethers.utils.parseEther("0.05").toString()
             )
         })
+        it("Reverts if caller not whitelisted", async () => {
+            await vault.connect(accounts[2])
+            await underlying.approve(
+                vault.address,
+                ethers.utils.parseEther("1")
+            )
+            await vault.deposit(
+                ethers.utils.parseEther("1"),
+                accounts[2].address
+            )
+            await vault.requestWithdraw(ethers.utils.parseEther("0.05"))
+            // fast forward time 25 hours
+            await ethers.provider.send("evm_increaseTime", [25 * 60 * 60])
+            await ethers.provider.send("evm_mine")
+            //revert if not whitelisted
+            await expect(
+                vault.withdraw(
+                    ethers.utils.parseEther("0.05"),
+                    accounts[2].address
+                )
+            ).to.be.reverted
+        })
     })
 
     describe("redeem", async () => {
