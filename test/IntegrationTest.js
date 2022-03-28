@@ -53,6 +53,8 @@ describe("VaultV1 + Strategy", async () => {
         strategy.setWhitelist(accounts[1].address, true)
         //set initial strategy
         await vault.setStrategy(strategy.address)
+        await vault.setWhiteList(accounts[0].address, true)
+        await vault.setWhiteList(accounts[1].address, true)
     })
 
     describe("deposit", async () => {
