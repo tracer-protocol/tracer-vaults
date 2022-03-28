@@ -17,7 +17,7 @@ contract TokeVault is ERC4626 {
     using SafeTransferLib for ERC20;
 
     // require assets
-    ERC20 public immutable toke = ERC20(0x2e9d63788249371f1DFC918a52f8d799F4a38C94);
+    ERC20 public immutable toke;
     ERC20 public immutable tAsset;
 
     // tokemak liquidity pool
@@ -49,6 +49,7 @@ contract TokeVault is ERC4626 {
         address _rewards,
         address _swapRouter,
         address _feeReciever,
+        address _toke,
         string memory name,
         string memory symbol
     ) ERC4626(ERC20(_tAsset), name, symbol) {
@@ -59,6 +60,7 @@ contract TokeVault is ERC4626 {
         rewards = IRewards(_rewards);
         swapRouter = ISwapRouter(_swapRouter);
         feeReciever = _feeReciever;
+        toke = ERC20(_toke);
     }
 
     function beforeWithdraw(uint256 underlyingAmount, uint256) internal override {
@@ -132,6 +134,11 @@ contract TokeVault is ERC4626 {
         uint256 depositAmount = underlyingBal - (underlyingBal / 10); // 90%
         uint256 serviceFee = (underlyingBal / 11); // ~9%
         uint256 keeperFee = underlyingBal - depositAmount - serviceFee;
+
+        // mark this as swap time
+        lastSwapTime = block.timestamp;
+
+        // transfer all the tokes
         underlying.safeApprove(address(tokemakPool), depositAmount);
         tokemakPool.deposit(depositAmount);
         underlying.safeTransfer(feeReciever, serviceFee);
