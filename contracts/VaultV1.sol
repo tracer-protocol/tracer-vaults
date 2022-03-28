@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC20, ERC4626} from "../lib/solmate/src/mixins/ERC4626.sol";
 import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./interfaces/IStrategy.sol";
 
 // An ERC4626 compliant vault that interacts with a strategy address
@@ -20,6 +21,7 @@ contract VaultV1 is ERC4626, Ownable {
     // Withdraw locking params
     mapping(address => uint256) public requestedWithdraws;
     mapping(address => uint256) public unlockTime;
+    mapping(address => bool) public whiteList;
     uint32 public constant withdrawWindow = 24 hours;
 
     bool public strategyExists;
@@ -44,8 +46,12 @@ contract VaultV1 is ERC4626, Ownable {
         strategyExists = true;
     }
 
+    function setWhiteList(address _addr, bool status) external onlyOwner {
+        whiteList[_addr] = status;
+    }
+
     //sends funds from the vault to the strategy address
-    function afterDeposit(uint256 assets, uint256) internal virtual override {
+    function afterDeposit(uint256 assets, uint256) internal virtual override onlyWhitelist {
         underlying.safeTransfer(address(strategy), assets);
         // notify the strategy
         strategy.deposit(assets);
@@ -56,7 +62,7 @@ contract VaultV1 is ERC4626, Ownable {
      * @dev pulls as many funds from the strategy as possible. If not enough funds are on hand, will revert.
      * @dev the withdrawer must have requested to withdraw 24 hours before withdrawing
      */
-    function beforeWithdraw(uint256 assets, uint256) internal virtual override {
+    function beforeWithdraw(uint256 assets, uint256) internal virtual override onlyWhitelist {
         // require the user has atleast this much amount pending for withdraw
         // require the users unlock time is in the past
         require(unlockTime[msg.sender] <= block.timestamp, "withdraw locked");
@@ -89,5 +95,10 @@ contract VaultV1 is ERC4626, Ownable {
 
         // alert the strategy of the pending withdraw
         strategy.requestWithdraw(amount);
+    }
+
+    modifier onlyWhitelist() {
+        require(whiteList[msg.sender], "only whitelisted addresses can use vault");
+        _;
     }
 }

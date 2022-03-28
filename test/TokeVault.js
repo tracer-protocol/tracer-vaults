@@ -9,7 +9,9 @@ describe.only("VaultV1", async () => {
         accounts = await ethers.getSigners()
         let vaultFactory = await ethers.getContractFactory("TokeVault")
         let ERC20Factory = await ethers.getContractFactory("TestERC20")
-        let tokeRewardsFactory = await ethers.getContractFactory("MockTokeRewards");
+        let tokeRewardsFactory = await ethers.getContractFactory(
+            "MockTokeRewards"
+        )
 
         // underlying token accepted by the vault
         underlying = await ERC20Factory.deploy("Test tAsset", "TAT")
@@ -21,7 +23,10 @@ describe.only("VaultV1", async () => {
         }
 
         // reward token
-        let sampleRewards = await ERC20Factory.deploy("Test Reward Token", "TOKE")
+        let sampleRewards = await ERC20Factory.deploy(
+            "Test Reward Token",
+            "TOKE"
+        )
         for (var i = 0; i < 10; i++) {
             await sampleRewards.mint(
                 ethers.utils.parseEther("10"),
@@ -36,13 +41,13 @@ describe.only("VaultV1", async () => {
             tokeRewards.address
         )
 
-        // impersonate address to get mainnet tTCR
-        await network.provider.request({
-          method: 'hardhat_impersonateAccount',
-          params: [""],
-        });
-        let impersonatedAccount = await ethers.provider.getSigner(address);
-        impersonatedAccount.address = impersonatedAccount._address;
+        // // impersonate address to get mainnet tTCR
+        // await network.provider.request({
+        //     method: "hardhat_impersonateAccount",
+        //     params: [""],
+        // })
+        // let impersonatedAccount = await ethers.provider.getSigner(address)
+        // impersonatedAccount.address = impersonatedAccount._address
 
         // note: This test suite will only pass in mainnet forked mode.
         let sampleRouter = "0xE592427A0AEce92De3Edee1F18E0157C05861564"
@@ -56,19 +61,16 @@ describe.only("VaultV1", async () => {
             "Test tAsset Vault",
             "tAVT"
         )
-
-        await mockStrategy.init(vault.address, underlying.address)
-        await vault.setStrategy(mockStrategy.address)
     })
 
-    describe("claim", async() => {
-        it("recieves assets from tokemak", async() => {
+    describe("claim", async () => {
+        it("recieves assets from tokemak", async () => {
             // todo: fork mainnet, test real claim at some known point in the past where
             // an account had outstanding assets
         })
     })
 
-    describe("compound", async() => {
+    describe("compound", async () => {
         // todo: fork mainnet. Get real assets. Test swap
     })
 })
