@@ -8,7 +8,7 @@ import {ERC20} from "../../lib/solmate/src/mixins/ERC4626.sol";
 contract PermissionedStrategy is IStrategy, AccessControl {
     // target perpetual pool and cached params
     address public immutable POOL;
-    ERC20 public immutable POOL_SHORT_TOKEN; 
+    ERC20 public immutable POOL_SHORT_TOKEN;
     address public immutable VAULT;
     using SafeTransferLib for ERC20;
 
