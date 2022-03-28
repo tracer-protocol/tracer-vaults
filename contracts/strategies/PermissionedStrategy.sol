@@ -2,16 +2,18 @@ pragma solidity ^0.8.0;
 
 import "../interfaces/IStrategy.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeTransferLib} from "../../lib/solmate/src/utils/SafeTransferLib.sol";
+import {ERC20} from "../../lib/solmate/src/mixins/ERC4626.sol";
 
 contract PermissionedStrategy is IStrategy, AccessControl {
     // target perpetual pool and cached params
     address public immutable POOL;
-    IERC20 public immutable POOL_SHORT_TOKEN; //todo: is this needed?
+    ERC20 public immutable POOL_SHORT_TOKEN; 
     address public immutable VAULT;
+    using SafeTransferLib for ERC20;
 
     // vault collateral asset
-    IERC20 public immutable VAULT_ASSET; //eg DAI in a ETH/USD+DAI pool
+    ERC20 public immutable VAULT_ASSET; //eg DAI in a ETH/USD+DAI pool
 
     // strategy current state
     // total outstanding debt owed by all addrsses per asset type
@@ -47,8 +49,8 @@ contract PermissionedStrategy is IStrategy, AccessControl {
 
         // cache state
         POOL = pool;
-        POOL_SHORT_TOKEN = IERC20(poolShortToken);
-        VAULT_ASSET = IERC20(vaultAsset);
+        POOL_SHORT_TOKEN = ERC20(poolShortToken);
+        VAULT_ASSET = ERC20(vaultAsset);
         // todo validate above poolShortToken and vaultAsset
         VAULT = _vault;
     }
@@ -105,7 +107,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         unchecked {
             totalRequestedWithdraws -= amount;
         }
-        VAULT_ASSET.transfer(VAULT, amountToTransfer);
+        VAULT_ASSET.safeTransfer(VAULT, amountToTransfer);
     }
 
     /**
@@ -127,7 +129,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
      * @param asset the asset being pulled
      */
     function pullAsset(uint256 amount, address asset) public onlyWhitelisted(asset) {
-        IERC20 _asset = IERC20(asset);
+        ERC20 _asset = ERC20(asset);
         uint256 currentAssetBal = _asset.balanceOf(address(this));
         require(amount <= currentAssetBal, "INSUFFICIENT FUNDS");
 
@@ -139,7 +141,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
         // update accounting
         debts[msg.sender][asset] += amount;
         totalDebt[asset] += amount;
-        _asset.transfer(msg.sender, amount);
+        _asset.safeTransfer(msg.sender, amount);
     }
 
     /**
@@ -169,7 +171,7 @@ contract PermissionedStrategy is IStrategy, AccessControl {
             totalDebt[asset] -= amount;
         }
 
-        IERC20(asset).transferFrom(msg.sender, address(this), amount);
+        ERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /*///////////////////////////////////////////////////////////////

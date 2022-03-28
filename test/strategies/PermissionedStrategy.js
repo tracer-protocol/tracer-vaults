@@ -313,7 +313,7 @@ describe("PermissionedStrategy", async () => {
                         ethers.utils.parseEther("50"),
                         vaultAsset.address
                     )
-            ).to.be.revertedWith("ERC20: transfer amount exceeds balance")
+            ).to.be.revertedWith("TRANSFER_FROM_FAILED")
         })
 
         it("caps debt amounts at 0", async () => {

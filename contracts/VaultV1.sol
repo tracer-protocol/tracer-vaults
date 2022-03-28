@@ -2,7 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./utils/ERC4626.sol";
+import {ERC20, ERC4626} from "../lib/solmate/src/mixins/ERC4626.sol";
+import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
 import "./interfaces/IStrategy.sol";
 
 // An ERC4626 compliant vault that interacts with a strategy address
@@ -44,10 +45,10 @@ contract VaultV1 is ERC4626, Ownable {
     }
 
     //sends funds from the vault to the strategy address
-    function afterDeposit(uint256 amount) internal virtual override {
-        underlying.safeTransfer(address(strategy), amount);
+    function afterDeposit(uint256 assets, uint256) internal virtual override {
+        underlying.safeTransfer(address(strategy), assets);
         // notify the strategy
-        strategy.deposit(amount);
+        strategy.deposit(assets);
     }
 
     /**
@@ -55,21 +56,21 @@ contract VaultV1 is ERC4626, Ownable {
      * @dev pulls as many funds from the strategy as possible. If not enough funds are on hand, will revert.
      * @dev the withdrawer must have requested to withdraw 24 hours before withdrawing
      */
-    function beforeWithdraw(uint256 amount) internal virtual override {
+    function beforeWithdraw(uint256 assets, uint256) internal virtual override {
         // require the user has atleast this much amount pending for withdraw
         // require the users unlock time is in the past
         require(unlockTime[msg.sender] <= block.timestamp, "withdraw locked");
-        require(requestedWithdraws[msg.sender] >= amount, "insufficient requested amount");
+        require(requestedWithdraws[msg.sender] >= assets, "insufficient requested amount");
 
         // all funds are stored in strategy. See how much can be pulled
-        require(strategy.withdrawable() >= amount, "not enough funds in vault");
+        require(strategy.withdrawable() >= assets, "not enough funds in vault");
 
         // update the users requested withdraw status
         requestedWithdraws[msg.sender] = 0;
         unlockTime[msg.sender] = 0;
 
         // pull funds from strategy so they can be returned to the user
-        strategy.withdraw(amount);
+        strategy.withdraw(assets);
     }
 
     /**

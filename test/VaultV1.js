@@ -155,7 +155,7 @@ describe("VaultV1", async () => {
                 vault
                     .connect(accounts[5])
                     .mint(ethers.utils.parseEther("1"), accounts[1].address)
-            ).to.be.revertedWith("ERC20: insufficient allowance")
+            ).to.be.revertedWith("TRANSFER_FROM_FAILED")
         })
     })
 
