@@ -7,6 +7,7 @@ import "./interfaces/tokemak/ILiquidityPool.sol";
 import "./interfaces/tokemak/IRewards.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import "hardhat/console.sol";
 
 /**
  * A Tokemak compatible ERC4626 vault that takes in a tAsset and auto compounds toke rewards
@@ -91,8 +92,8 @@ contract TokeVault is ERC4626 {
         // claim toke rewards
         rewards.claim(recipient, v, r, s);
 
-        // reward the claimer for executing this claim
-        tAsset.safeTransfer(msg.sender, keeperRewardAmount);
+        // reward the claimer for executing this claim - rewarded in reward tokens
+        toke.safeTransfer(msg.sender, keeperRewardAmount);
     }
 
     /**
@@ -104,21 +105,25 @@ contract TokeVault is ERC4626 {
         require(canCompound(), "not ready to compound");
         // find the asset the tokemak pool is settled in
         ERC20 underlying = ERC20(tokemakPool.underlyer());
+        console.log(address(underlying));
+        
         uint256 tokeBal = toke.balanceOf(address(this));
         // cap at max toke swap amount
         uint256 swapAmount = tokeBal >= maxSwapTokens ? maxSwapTokens : tokeBal;
+        console.logUint(swapAmount);
 
         // sell toke rewards earned for underlying asset
         // dealing with slippage
-        // todo: option 1: - toke / underlying oracle needed for safety
         // option 2: have a max sale amount with a cooldown period?
         // note: slippage here will only ever be upward pressure on the tAsset but you still want to optimise this
+        toke.safeApprove(address(swapRouter), swapAmount);
+        console.logUint(0);
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: address(toke),
             tokenOut: address(underlying),
             fee: swapPoolFee,
             recipient: address(this),
-            deadline: block.timestamp,
+            deadline: block.timestamp + 30 minutes,
             amountIn: swapAmount,
             amountOutMinimum: 0,
             sqrtPriceLimitX96: 0
@@ -126,8 +131,7 @@ contract TokeVault is ERC4626 {
 
         // The call to `exactInputSingle` executes the swap.
         uint256 amountOut = swapRouter.exactInputSingle(params);
-
-        // todo: option 3: make this a permissioned function and use input to define the MIN price willing to be accepted.
+        console.logUint(amountOut);
 
         // deposit all of underlying back into toke and take service fee
         uint256 underlyingBal = underlying.balanceOf(address(this));
@@ -152,7 +156,7 @@ contract TokeVault is ERC4626 {
     function canCompound() public view returns (bool) {
         // has enough time passed?
         bool hasTimePassed = block.timestamp > lastSwapTime + swapCooldown;
-        bool hasBalance = (ERC20(tokemakPool.underlyer())).balanceOf(address(this)) != 0;
+        bool hasBalance = toke.balanceOf(address(this)) != 0;
         return hasTimePassed && hasBalance;
     }
 }

@@ -17,4 +17,12 @@ module.exports = {
     namedAccounts: {
         deployer: 0,
     },
+    networks: {
+        hardhat: {
+            forking: {
+                url: "",
+                blockNumber: 14448270
+            }
+        }
+    }
 }
