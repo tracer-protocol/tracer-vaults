@@ -5,6 +5,7 @@ require("hardhat-deploy")
 require("@nomiclabs/hardhat-ethers")
 require("solidity-coverage")
 require("hardhat-gas-reporter")
+require("dotenv").config()
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
@@ -20,7 +21,7 @@ module.exports = {
     networks: {
         hardhat: {
             forking: {
-                url: "",
+                url: process.env.RPC_URL,
                 blockNumber: 14448270
             }
         }

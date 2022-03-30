@@ -6,12 +6,13 @@ describe.only("VaultV1", async () => {
     const mainnetTOKE = "0x2e9d63788249371f1DFC918a52f8d799F4a38C94"
     const mainnetTCR = "0x9C4A4204B79dd291D6b6571C5BE8BbcD0622F050"
     const mainnettTCR = "0x15A629f0665A3Eb97D7aE9A7ce7ABF73AeB79415"
-    const uniRouter = "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+    const sushiRouter = "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F"
+    const mainnetWETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
     let samplePayload = {
         payload: {
             wallet: '0x95e8c5a56acc8064311d79946c7be87a1e90d17f',
             cycle: 204,
-            amount: '1000000000000000000000',
+            amount: '100000000000000000000',
             chainId: 1
         },
         signature: {
@@ -21,6 +22,13 @@ describe.only("VaultV1", async () => {
             msg: '0x01c3102cfeea13bab0c91186c045ce56be2512b05fd9136ef7f5819bbdd11a8477784a9280e55f1636fdf605d6e62dafba0e348a4a1dabc493dbae7526dc09161b'
         },
     }
+
+    // toke -> weth -> tcr
+    const swapPath = [
+        mainnetTOKE,
+        mainnetWETH,
+        mainnetTCR
+    ]
 
     beforeEach(async () => {
         accounts = await ethers.getSigners()
@@ -64,9 +72,10 @@ describe.only("VaultV1", async () => {
         tokeVault = await vaultFactory.deploy(
             tTCR.address,
             tokeRewards.address,
-            uniRouter,
+            sushiRouter,
             accounts[0].address,
             toke.address,
+            swapPath,
             "Test tAsset Vault",
             "tAVT"
         )
@@ -78,7 +87,7 @@ describe.only("VaultV1", async () => {
     describe("claim", async () => {
         beforeEach(async () => {
             // deposit 1000 toke into the sample rewards contract
-            await toke.connect(impersonatedAccount).transfer(tokeRewards.address, ethers.utils.parseEther("1000"))
+            await toke.connect(impersonatedAccount).transfer(tokeRewards.address, ethers.utils.parseEther("100"))
         })
         it("recieves assets from tokemak", async () => {
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
@@ -104,32 +113,51 @@ describe.only("VaultV1", async () => {
     })
 
     describe("compound", async () => {
-        beforeEach(async () => {
-            // simulate the vault having 500 toke on hand
-            await toke.connect(impersonatedAccount).transfer(tokeVault.address, ethers.utils.parseEther("500"))
-        })
-        it.only("performs a swap from toke to TCR and deposits", async () => {
+
+        it("performs a swap from toke to TCR and deposits", async () => {
+            await toke.connect(impersonatedAccount).transfer(tokeVault.address, ethers.utils.parseEther("100"))
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
             let tTCRBalanaceBefore = await tTCR.balanceOf(tokeVault.address)
+            let tcrBalanceBefore = await tcr.balanceOf(tokeVault.address)
 
+            // compound will sell a max of 100 toke into TCR then put the TCR back into toke.
             await tokeVault.compound()
 
             let tokeBalanceAfter = await toke.balanceOf(tokeVault.address)
             let tTCRBalanaceAfter = await tTCR.balanceOf(tokeVault.address)
+            let tcrBalanceAfter = await tcr.balanceOf(tokeVault.address)
 
-            console.log(tokeBalanceAfter)
-            console.log(tTCRBalanaceAfter)
-
+            // toke before > toke after
+            expect(parseInt(tokeBalanceBefore.toString())).to.be.greaterThan(parseInt(tokeBalanceAfter.toString()))
+            // tTCR before < tTCR after
+            expect(parseInt(tTCRBalanaceBefore.toString())).to.be.lessThan(parseInt(tTCRBalanaceAfter.toString()))
+            // // tcr balance does not change before and after swap
+            expect(parseInt(tcrBalanceBefore.toString())).to.be.eq(parseInt(tcrBalanceAfter.toString()))
         })
 
-        it("limits the swap to 1000 TOKE", async () => {
+        it("limits the swap to maxSwapTokens TOKE", async () => {
+            await toke.connect(impersonatedAccount).transfer(tokeVault.address, ethers.utils.parseEther("150"))
+            
+            let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
+            let maxSwapTokens = await tokeVault.maxSwapTokens()
+            // compound will sell a max of 100 toke into TCR then put the TCR back into toke.
+            await tokeVault.compound()
 
+            let tokeBalanceAfter = await toke.balanceOf(tokeVault.address)
+
+            // only 100 toke swapped
+            await expect((tokeBalanceBefore.sub(tokeBalanceAfter)).toString()).to.eq(maxSwapTokens.toString())
         })
 
         it("reverts if being called to frequently", async () => {
+            await toke.connect(impersonatedAccount).transfer(tokeVault.address, ethers.utils.parseEther("100"))
+            await tokeVault.compound()
+            let canCompound = await tokeVault.canCompound()
+            expect(canCompound).to.be.false
 
+            await expect(
+                tokeVault.compound()
+            ).to.be.revertedWith("not ready to compound")
         })
-
-        it("reverts if the balance to swap is 0")
     })
 })

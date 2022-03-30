@@ -5,8 +5,7 @@ import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "../lib/solmate/src/utils/FixedPointMathLib.sol";
 import "./interfaces/tokemak/ILiquidityPool.sol";
 import "./interfaces/tokemak/IRewards.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import "./interfaces/uniswap/UniswapV2Router02.sol";
 import "hardhat/console.sol";
 
 /**
@@ -32,7 +31,8 @@ contract TokeVault is ERC4626 {
     mapping(address => uint256) public requestedWithdraws;
 
     // uniswap
-    ISwapRouter public immutable swapRouter;
+    address public immutable swapRouter;
+    address[] public tradePath;
     // configurable max swap amount.
     uint256 public maxSwapTokens = 100000000000000000000;
     uint24 public swapPoolFee = 3000; // default 0.3%
@@ -51,6 +51,7 @@ contract TokeVault is ERC4626 {
         address _swapRouter,
         address _feeReciever,
         address _toke,
+        address[] memory _tradePath,
         string memory name,
         string memory symbol
     ) ERC4626(ERC20(_tAsset), name, symbol) {
@@ -59,9 +60,10 @@ contract TokeVault is ERC4626 {
         // pool representation of toke pool
         tokemakPool = ILiquidityPool(_tAsset);
         rewards = IRewards(_rewards);
-        swapRouter = ISwapRouter(_swapRouter);
+        swapRouter = _swapRouter;
         feeReciever = _feeReciever;
         toke = ERC20(_toke);
+        tradePath = _tradePath;
     }
 
     function beforeWithdraw(uint256 underlyingAmount, uint256) internal override {
@@ -103,41 +105,32 @@ contract TokeVault is ERC4626 {
     function compound() public {
         // validate we can compound
         require(canCompound(), "not ready to compound");
+    
         // find the asset the tokemak pool is settled in
         ERC20 underlying = ERC20(tokemakPool.underlyer());
-        console.log(address(underlying));
         
-        uint256 tokeBal = toke.balanceOf(address(this));
         // cap at max toke swap amount
+        uint256 tokeBal = toke.balanceOf(address(this));
         uint256 swapAmount = tokeBal >= maxSwapTokens ? maxSwapTokens : tokeBal;
-        console.logUint(swapAmount);
 
         // sell toke rewards earned for underlying asset
         // dealing with slippage
         // option 2: have a max sale amount with a cooldown period?
         // note: slippage here will only ever be upward pressure on the tAsset but you still want to optimise this
-        toke.safeApprove(address(swapRouter), swapAmount);
-        console.logUint(0);
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-            tokenIn: address(toke),
-            tokenOut: address(underlying),
-            fee: swapPoolFee,
-            recipient: address(this),
-            deadline: block.timestamp + 30 minutes,
-            amountIn: swapAmount,
-            amountOutMinimum: 0,
-            sqrtPriceLimitX96: 0
-        });
+        toke.safeApprove(swapRouter, swapAmount);
 
-        // The call to `exactInputSingle` executes the swap.
-        uint256 amountOut = swapRouter.exactInputSingle(params);
-        console.logUint(amountOut);
+        // approve the router
+        UniswapV2Router02 router = UniswapV2Router02(swapRouter);
+
+        // swap from toke to underlying asset to deposit back into toke
+        router.swapExactTokensForTokens(swapAmount, 1, tradePath, address(this), block.timestamp + 30 minutes);
 
         // deposit all of underlying back into toke and take service fee
         uint256 underlyingBal = underlying.balanceOf(address(this));
+        // deposit 90% back into toke, take 1% keeper fee, take 9% service fee.
         uint256 depositAmount = underlyingBal - (underlyingBal / 10); // 90%
-        uint256 serviceFee = (underlyingBal / 11); // ~9%
-        uint256 keeperFee = underlyingBal - depositAmount - serviceFee;
+        uint256 keeperFee = underlyingBal/100;
+        uint256 serviceFee = underlyingBal - depositAmount - keeperFee;
 
         // mark this as swap time
         lastSwapTime = block.timestamp;
