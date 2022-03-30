@@ -160,4 +160,81 @@ describe.only("VaultV1", async () => {
             ).to.be.revertedWith("not ready to compound")
         })
     })
+
+    describe("safety functions", async() => {
+        it("only the owner can withdraw tokens", async() => {
+            await expect(
+                tokeVault.connect(accounts[3]).withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
+            ).to.be.revertedWith("Ownable: caller is not the owner")
+        })
+
+        it("the owner is able to withdraw any tokens", async() => {
+            // deposit
+            await tTCR.approve(tokeVault.address, ethers.utils.parseEther("1"))
+            await tokeVault.deposit(ethers.utils.parseEther("1"), accounts[0].address)
+
+            // withdraw assets back to owner bypassing system
+            let ownerBaltTCR = await tTCR.balanceOf(accounts[0].address)
+            await tokeVault.connect(accounts[0]).withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
+            let ownerBaltTCRAfter = await tTCR.balanceOf(accounts[0].address)
+            expect((ownerBaltTCRAfter.sub(ownerBaltTCR)).toString()).to.equal((ethers.utils.parseEther("1")).toString())
+        })
+    })
+
+    describe("setKeeperReward", async() => {
+        it("reverts if not called by owner", async() => {
+            await expect(
+                tokeVault.connect(accounts[3]).setKeeperReward(ethers.utils.parseEther("1"))
+            ).to.be.revertedWith("Ownable: caller is not the owner")
+        })
+
+        it("sets", async() => {
+            await tokeVault.connect(accounts[0]).setKeeperReward(ethers.utils.parseEther("1"))
+            let keeperRewards = await tokeVault.keeperRewardAmount()
+            expect(keeperRewards.toString()).to.eq((ethers.utils.parseEther("1")).toString())
+        })
+    })
+
+    describe("setMaxSwapTokens", async() => {
+        it("reverts if not called by owner", async() => {
+            await expect(
+                tokeVault.connect(accounts[3]).setMaxSwapTokens(ethers.utils.parseEther("1"))
+            ).to.be.revertedWith("Ownable: caller is not the owner")
+        })
+
+        it("sets", async() => {
+            await tokeVault.connect(accounts[0]).setMaxSwapTokens(ethers.utils.parseEther("1"))
+            let maxSwapTokens = await tokeVault.maxSwapTokens()
+            expect(maxSwapTokens.toString()).to.eq((ethers.utils.parseEther("1")).toString())
+        })
+    })
+
+    describe("setSwapCooldown", async() => {
+        it("reverts if not called by owner", async() => {
+            await expect(
+                tokeVault.connect(accounts[3]).setSwapCooldown(ethers.utils.parseEther("1"))
+            ).to.be.revertedWith("Ownable: caller is not the owner")
+        })
+
+        it("sets", async() => {
+            // set swap cooldown to 2 hours
+            await tokeVault.connect(accounts[0]).setSwapCooldown(2)
+            let swapCooldown = await tokeVault.swapCooldown()
+            expect(swapCooldown.toString()).to.eq(parseInt(2*60*60).toString())
+        })
+    })
+
+    describe("setFeeReciever", async() => {
+        it("reverts if not called by owner", async() => {
+            await expect(
+                tokeVault.connect(accounts[3]).setFeeReciever(accounts[5].address)
+            ).to.be.revertedWith("Ownable: caller is not the owner")
+        })
+
+        it("sets", async() => {
+            await tokeVault.connect(accounts[0]).setFeeReciever(accounts[5].address)
+            let feeReceiver = await tokeVault.feeReciever()
+            expect(feeReceiver).to.eq(accounts[5].address)
+        })
+    })
 })
