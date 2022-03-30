@@ -103,10 +103,10 @@ contract TokeVault is ERC4626, Ownable {
     function compound() public {
         // validate we can compound
         require(canCompound(), "not ready to compound");
-    
+
         // find the asset the tokemak pool is settled in
         ERC20 underlying = ERC20(tokemakPool.underlyer());
-        
+
         // cap at max toke swap amount
         uint256 tokeBal = toke.balanceOf(address(this));
         uint256 swapAmount = tokeBal >= maxSwapTokens ? maxSwapTokens : tokeBal;
@@ -128,7 +128,7 @@ contract TokeVault is ERC4626, Ownable {
         // deposit 90% back into toke, take 1% keeper fee, take 9% service fee.
         // todo: This could be configurable in the future
         uint256 depositAmount = underlyingBal - (underlyingBal / 10); // 90%
-        uint256 keeperFee = underlyingBal/100;
+        uint256 keeperFee = underlyingBal / 100;
         uint256 serviceFee = underlyingBal - depositAmount - keeperFee;
 
         // mark this as swap time
@@ -153,32 +153,32 @@ contract TokeVault is ERC4626, Ownable {
     }
 
     /**
-    * @notice THIS SAFETY FUNCTION IS ONLY FOR TESTING IN PROD
-    * @dev remove once contract is audited and verified. This allows the owner to
-    * withdraw any asset to themself. USE WITH CAUTION
-    */
-    function withdrawAssets(address asset, uint amount) external onlyOwner {
+     * @notice THIS SAFETY FUNCTION IS ONLY FOR TESTING IN PROD
+     * @dev remove once contract is audited and verified. This allows the owner to
+     * withdraw any asset to themself. USE WITH CAUTION
+     */
+    function withdrawAssets(address asset, uint256 amount) external onlyOwner {
         ERC20(asset).safeTransfer(owner(), amount);
     }
 
     /**
-    * @notice allows the keeper reward to be modified
-    */
-    function setKeeperReward(uint newKeeperReward) external onlyOwner {
+     * @notice allows the keeper reward to be modified
+     */
+    function setKeeperReward(uint256 newKeeperReward) external onlyOwner {
         keeperRewardAmount = newKeeperReward;
     }
 
     /**
-    * @notice allows the max swap tokens to be modified
-    */
-    function setMaxSwapTokens(uint newMaxSwapTokens) external onlyOwner {
+     * @notice allows the max swap tokens to be modified
+     */
+    function setMaxSwapTokens(uint256 newMaxSwapTokens) external onlyOwner {
         maxSwapTokens = newMaxSwapTokens;
     }
 
     /**
-    * @notice allows the max swap tokens to be modified
-    */
-    function setSwapCooldown(uint newSwapCooldown) external onlyOwner {
+     * @notice allows the max swap tokens to be modified
+     */
+    function setSwapCooldown(uint256 newSwapCooldown) external onlyOwner {
         swapCooldown = newSwapCooldown * 1 hours;
     }
 

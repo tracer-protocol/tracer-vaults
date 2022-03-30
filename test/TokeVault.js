@@ -10,30 +10,28 @@ describe.only("VaultV1", async () => {
     const mainnetWETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
     let samplePayload = {
         payload: {
-            wallet: '0x95e8c5a56acc8064311d79946c7be87a1e90d17f',
+            wallet: "0x95e8c5a56acc8064311d79946c7be87a1e90d17f",
             cycle: 204,
-            amount: '100000000000000000000',
-            chainId: 1
+            amount: "100000000000000000000",
+            chainId: 1,
         },
         signature: {
             v: 27,
-            r: '0x01c3102cfeea13bab0c91186c045ce56be2512b05fd9136ef7f5819bbdd11a84',
-            s: '0x77784a9280e55f1636fdf605d6e62dafba0e348a4a1dabc493dbae7526dc0916',
-            msg: '0x01c3102cfeea13bab0c91186c045ce56be2512b05fd9136ef7f5819bbdd11a8477784a9280e55f1636fdf605d6e62dafba0e348a4a1dabc493dbae7526dc09161b'
+            r: "0x01c3102cfeea13bab0c91186c045ce56be2512b05fd9136ef7f5819bbdd11a84",
+            s: "0x77784a9280e55f1636fdf605d6e62dafba0e348a4a1dabc493dbae7526dc0916",
+            msg: "0x01c3102cfeea13bab0c91186c045ce56be2512b05fd9136ef7f5819bbdd11a8477784a9280e55f1636fdf605d6e62dafba0e348a4a1dabc493dbae7526dc09161b",
         },
     }
 
     // toke -> weth -> tcr
-    const swapPath = [
-        mainnetTOKE,
-        mainnetWETH,
-        mainnetTCR
-    ]
+    const swapPath = [mainnetTOKE, mainnetWETH, mainnetTCR]
 
     beforeEach(async () => {
         accounts = await ethers.getSigners()
         let vaultFactory = await ethers.getContractFactory("TokeVault")
-        let tokeRewardsFactory = await ethers.getContractFactory("MockTokeRewards")
+        let tokeRewardsFactory = await ethers.getContractFactory(
+            "MockTokeRewards"
+        )
         tcr = await ethers.getContractAt("TestERC20", mainnetTCR)
         toke = await ethers.getContractAt("TestERC20", mainnetTOKE)
         tTCR = await ethers.getContractAt("TestERC20", mainnettTCR)
@@ -44,7 +42,9 @@ describe.only("VaultV1", async () => {
             method: "hardhat_impersonateAccount",
             params: ["0x95E8C5a56ACc8064311d79946c7Be87a1e90d17f"],
         })
-        impersonatedAccount = await ethers.provider.getSigner("0x95E8C5a56ACc8064311d79946c7Be87a1e90d17f")
+        impersonatedAccount = await ethers.provider.getSigner(
+            "0x95E8C5a56ACc8064311d79946c7Be87a1e90d17f"
+        )
         impersonatedAccount.address = impersonatedAccount._address
 
         // get forked mainnet eth to our accounts
@@ -52,18 +52,28 @@ describe.only("VaultV1", async () => {
             method: "hardhat_impersonateAccount",
             params: ["0x0000000000000000000000000000000000000000"],
         })
-        let zeroAddress = await ethers.provider.getSigner("0x0000000000000000000000000000000000000000")
+        let zeroAddress = await ethers.provider.getSigner(
+            "0x0000000000000000000000000000000000000000"
+        )
         zeroAddress.address = zeroAddress._address
 
-        await zeroAddress.sendTransaction({ value: ethers.utils.parseEther("100"), to: "0x95E8C5a56ACc8064311d79946c7Be87a1e90d17f" })
+        await zeroAddress.sendTransaction({
+            value: ethers.utils.parseEther("100"),
+            to: "0x95E8C5a56ACc8064311d79946c7Be87a1e90d17f",
+        })
         for (var i = 0; i < 3; i++) {
-            await zeroAddress.sendTransaction({ value: ethers.utils.parseEther("100"), to: accounts[i].address })
+            await zeroAddress.sendTransaction({
+                value: ethers.utils.parseEther("100"),
+                to: accounts[i].address,
+            })
         }
 
         // underlying token accepted by the vault
         for (var i = 0; i < 2; i++) {
             // send 10k tTCR to accounts 1 and 2
-            await tTCR.connect(impersonatedAccount).transfer(accounts[i].address, ethers.utils.parseEther("10000"))
+            await tTCR
+                .connect(impersonatedAccount)
+                .transfer(accounts[i].address, ethers.utils.parseEther("10000"))
         }
 
         // deploy a mock toke rewards contract and give them some rewards
@@ -87,7 +97,9 @@ describe.only("VaultV1", async () => {
     describe("claim", async () => {
         beforeEach(async () => {
             // deposit 1000 toke into the sample rewards contract
-            await toke.connect(impersonatedAccount).transfer(tokeRewards.address, ethers.utils.parseEther("100"))
+            await toke
+                .connect(impersonatedAccount)
+                .transfer(tokeRewards.address, ethers.utils.parseEther("100"))
         })
         it("recieves assets from tokemak", async () => {
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
@@ -104,18 +116,26 @@ describe.only("VaultV1", async () => {
             let callerTokeAfter = await toke.balanceOf(accounts[0].address)
 
             // the entire payload should have been claimed and a fee paid to the msg sender
-            let payloadAmount = ethers.utils.parseUnits(samplePayload.payload.amount, "wei")
+            let payloadAmount = ethers.utils.parseUnits(
+                samplePayload.payload.amount,
+                "wei"
+            )
             let fee = ethers.utils.parseEther("1.5")
             let expectedAmount = payloadAmount.sub(fee) // 1.5 toke fee
-            expect((tokeBalanceAfter.sub(tokeBalanceBefore)).toString()).to.equal(expectedAmount.toString())
-            expect((callerTokeAfter.sub(callerTokeBefore)).toString()).to.equal(fee.toString())
+            expect(tokeBalanceAfter.sub(tokeBalanceBefore).toString()).to.equal(
+                expectedAmount.toString()
+            )
+            expect(callerTokeAfter.sub(callerTokeBefore).toString()).to.equal(
+                fee.toString()
+            )
         })
     })
 
     describe("compound", async () => {
-
         it("performs a swap from toke to TCR and deposits", async () => {
-            await toke.connect(impersonatedAccount).transfer(tokeVault.address, ethers.utils.parseEther("100"))
+            await toke
+                .connect(impersonatedAccount)
+                .transfer(tokeVault.address, ethers.utils.parseEther("100"))
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
             let tTCRBalanaceBefore = await tTCR.balanceOf(tokeVault.address)
             let tcrBalanceBefore = await tcr.balanceOf(tokeVault.address)
@@ -128,16 +148,24 @@ describe.only("VaultV1", async () => {
             let tcrBalanceAfter = await tcr.balanceOf(tokeVault.address)
 
             // toke before > toke after
-            expect(parseInt(tokeBalanceBefore.toString())).to.be.greaterThan(parseInt(tokeBalanceAfter.toString()))
+            expect(parseInt(tokeBalanceBefore.toString())).to.be.greaterThan(
+                parseInt(tokeBalanceAfter.toString())
+            )
             // tTCR before < tTCR after
-            expect(parseInt(tTCRBalanaceBefore.toString())).to.be.lessThan(parseInt(tTCRBalanaceAfter.toString()))
+            expect(parseInt(tTCRBalanaceBefore.toString())).to.be.lessThan(
+                parseInt(tTCRBalanaceAfter.toString())
+            )
             // // tcr balance does not change before and after swap
-            expect(parseInt(tcrBalanceBefore.toString())).to.be.eq(parseInt(tcrBalanceAfter.toString()))
+            expect(parseInt(tcrBalanceBefore.toString())).to.be.eq(
+                parseInt(tcrBalanceAfter.toString())
+            )
         })
 
         it("limits the swap to maxSwapTokens TOKE", async () => {
-            await toke.connect(impersonatedAccount).transfer(tokeVault.address, ethers.utils.parseEther("150"))
-            
+            await toke
+                .connect(impersonatedAccount)
+                .transfer(tokeVault.address, ethers.utils.parseEther("150"))
+
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
             let maxSwapTokens = await tokeVault.maxSwapTokens()
             // compound will sell a max of 100 toke into TCR then put the TCR back into toke.
@@ -146,93 +174,126 @@ describe.only("VaultV1", async () => {
             let tokeBalanceAfter = await toke.balanceOf(tokeVault.address)
 
             // only 100 toke swapped
-            await expect((tokeBalanceBefore.sub(tokeBalanceAfter)).toString()).to.eq(maxSwapTokens.toString())
+            await expect(
+                tokeBalanceBefore.sub(tokeBalanceAfter).toString()
+            ).to.eq(maxSwapTokens.toString())
         })
 
         it("reverts if being called to frequently", async () => {
-            await toke.connect(impersonatedAccount).transfer(tokeVault.address, ethers.utils.parseEther("100"))
+            await toke
+                .connect(impersonatedAccount)
+                .transfer(tokeVault.address, ethers.utils.parseEther("100"))
             await tokeVault.compound()
             let canCompound = await tokeVault.canCompound()
             expect(canCompound).to.be.false
 
-            await expect(
-                tokeVault.compound()
-            ).to.be.revertedWith("not ready to compound")
+            await expect(tokeVault.compound()).to.be.revertedWith(
+                "not ready to compound"
+            )
         })
     })
 
-    describe("safety functions", async() => {
-        it("only the owner can withdraw tokens", async() => {
+    describe("safety functions", async () => {
+        it("only the owner can withdraw tokens", async () => {
             await expect(
-                tokeVault.connect(accounts[3]).withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
+                tokeVault
+                    .connect(accounts[3])
+                    .withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("the owner is able to withdraw any tokens", async() => {
+        it("the owner is able to withdraw any tokens", async () => {
             // deposit
             await tTCR.approve(tokeVault.address, ethers.utils.parseEther("1"))
-            await tokeVault.deposit(ethers.utils.parseEther("1"), accounts[0].address)
+            await tokeVault.deposit(
+                ethers.utils.parseEther("1"),
+                accounts[0].address
+            )
 
             // withdraw assets back to owner bypassing system
             let ownerBaltTCR = await tTCR.balanceOf(accounts[0].address)
-            await tokeVault.connect(accounts[0]).withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
+            await tokeVault
+                .connect(accounts[0])
+                .withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
             let ownerBaltTCRAfter = await tTCR.balanceOf(accounts[0].address)
-            expect((ownerBaltTCRAfter.sub(ownerBaltTCR)).toString()).to.equal((ethers.utils.parseEther("1")).toString())
+            expect(ownerBaltTCRAfter.sub(ownerBaltTCR).toString()).to.equal(
+                ethers.utils.parseEther("1").toString()
+            )
         })
     })
 
-    describe("setKeeperReward", async() => {
-        it("reverts if not called by owner", async() => {
+    describe("setKeeperReward", async () => {
+        it("reverts if not called by owner", async () => {
             await expect(
-                tokeVault.connect(accounts[3]).setKeeperReward(ethers.utils.parseEther("1"))
+                tokeVault
+                    .connect(accounts[3])
+                    .setKeeperReward(ethers.utils.parseEther("1"))
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("sets", async() => {
-            await tokeVault.connect(accounts[0]).setKeeperReward(ethers.utils.parseEther("1"))
+        it("sets", async () => {
+            await tokeVault
+                .connect(accounts[0])
+                .setKeeperReward(ethers.utils.parseEther("1"))
             let keeperRewards = await tokeVault.keeperRewardAmount()
-            expect(keeperRewards.toString()).to.eq((ethers.utils.parseEther("1")).toString())
+            expect(keeperRewards.toString()).to.eq(
+                ethers.utils.parseEther("1").toString()
+            )
         })
     })
 
-    describe("setMaxSwapTokens", async() => {
-        it("reverts if not called by owner", async() => {
+    describe("setMaxSwapTokens", async () => {
+        it("reverts if not called by owner", async () => {
             await expect(
-                tokeVault.connect(accounts[3]).setMaxSwapTokens(ethers.utils.parseEther("1"))
+                tokeVault
+                    .connect(accounts[3])
+                    .setMaxSwapTokens(ethers.utils.parseEther("1"))
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("sets", async() => {
-            await tokeVault.connect(accounts[0]).setMaxSwapTokens(ethers.utils.parseEther("1"))
+        it("sets", async () => {
+            await tokeVault
+                .connect(accounts[0])
+                .setMaxSwapTokens(ethers.utils.parseEther("1"))
             let maxSwapTokens = await tokeVault.maxSwapTokens()
-            expect(maxSwapTokens.toString()).to.eq((ethers.utils.parseEther("1")).toString())
+            expect(maxSwapTokens.toString()).to.eq(
+                ethers.utils.parseEther("1").toString()
+            )
         })
     })
 
-    describe("setSwapCooldown", async() => {
-        it("reverts if not called by owner", async() => {
+    describe("setSwapCooldown", async () => {
+        it("reverts if not called by owner", async () => {
             await expect(
-                tokeVault.connect(accounts[3]).setSwapCooldown(ethers.utils.parseEther("1"))
+                tokeVault
+                    .connect(accounts[3])
+                    .setSwapCooldown(ethers.utils.parseEther("1"))
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("sets", async() => {
+        it("sets", async () => {
             // set swap cooldown to 2 hours
             await tokeVault.connect(accounts[0]).setSwapCooldown(2)
             let swapCooldown = await tokeVault.swapCooldown()
-            expect(swapCooldown.toString()).to.eq(parseInt(2*60*60).toString())
+            expect(swapCooldown.toString()).to.eq(
+                parseInt(2 * 60 * 60).toString()
+            )
         })
     })
 
-    describe("setFeeReciever", async() => {
-        it("reverts if not called by owner", async() => {
+    describe("setFeeReciever", async () => {
+        it("reverts if not called by owner", async () => {
             await expect(
-                tokeVault.connect(accounts[3]).setFeeReciever(accounts[5].address)
+                tokeVault
+                    .connect(accounts[3])
+                    .setFeeReciever(accounts[5].address)
             ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("sets", async() => {
-            await tokeVault.connect(accounts[0]).setFeeReciever(accounts[5].address)
+        it("sets", async () => {
+            await tokeVault
+                .connect(accounts[0])
+                .setFeeReciever(accounts[5].address)
             let feeReceiver = await tokeVault.feeReciever()
             expect(feeReceiver).to.eq(accounts[5].address)
         })
