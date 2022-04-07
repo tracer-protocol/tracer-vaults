@@ -10,3 +10,6 @@
 [submodule "forge/lib/perpetual-pools-contracts"]
 	path = forge/lib/perpetual-pools-contracts
 	url = https://github.com/tracer-protocol/perpetual-pools-contracts
+[submodule "forge/lib/abdk-libraries-solidity"]
+	path = forge/lib/abdk-libraries-solidity
+	url = https://github.com/abdk-consulting/abdk-libraries-solidity
