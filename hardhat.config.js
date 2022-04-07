@@ -19,15 +19,15 @@ module.exports = {
         deployer: 0,
     },
     networks: {
-        hardhat: {
+        deploy: {
+            url: process.env.RPC_URL,
+            accounts: [process.env.PK],
+        },
+        test: {
             forking: {
                 url: process.env.RPC_URL,
                 blockNumber: 14448270,
             },
-        },
-        deploy: {
-            url: process.env.RPC_URL,
-            accounts: [process.env.PK],
         },
     },
     etherscan: {

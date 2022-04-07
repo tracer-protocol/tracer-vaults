@@ -47,3 +47,5 @@ jobs:
             
             - name: Test contracts
               run: yarn test
+              env: 
+                RPC_URL: ${{secrets.RPC_URL}}
