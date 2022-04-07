@@ -1,3 +1,6 @@
 [submodule "lib/solmate"]
 	path = lib/solmate
 	url = https://github.com/Rari-Capital/solmate
+[submodule "forge/lib/ds-test"]
+	path = forge/lib/ds-test
+	url = https://github.com/dapphub/ds-test
