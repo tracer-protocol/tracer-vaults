@@ -6,7 +6,7 @@ env:
   ## Sets environment variable
   RPC_URL: ${{secrets.RPC_URL}}
   PK: ${{secrets.PK}}
-  ETHERSCAN_API: ${{ETHERSCAN_API.PK}} 
+  ETHERSCAN_API: ${{secrets.ETHERSCAN_API}} 
 
 jobs:
     build:
