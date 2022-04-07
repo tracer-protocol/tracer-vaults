@@ -28,15 +28,15 @@ module.exports = {
         deploy: {
             url: process.env.RPC_URL,
             accounts: [process.env.PK],
-        }
+        },
     },
     etherscan: {
         // Your API key for Etherscan
         // Obtain one at https://etherscan.io/
-        apiKey: process.env.ETHERSCAN_API
+        apiKey: process.env.ETHERSCAN_API,
     },
     gasReporter: {
-        currency: 'AUD',
-        gasPrice: 38
-    }
+        currency: "AUD",
+        gasPrice: 38,
+    },
 }

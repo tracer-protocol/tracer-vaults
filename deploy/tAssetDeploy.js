@@ -26,7 +26,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
             mainnetTOKE,
             swapPath,
             "tTCR-Tokemak-Vault",
-            "TTV"
+            "TTV",
         ],
         log: true,
     })
@@ -53,8 +53,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
             mainnetTOKE,
             swapPath,
             "tTCR-Tokemak-Vault",
-            "TTV"
+            "TTV",
         ],
-    });
+    })
 }
 module.exports.tags = ["tAsset-TCR-Vault"]
