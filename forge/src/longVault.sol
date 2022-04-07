@@ -90,40 +90,25 @@ contract longVault {
     }
 
     function acquire(uint256 _amount) private {
-        bytes32 args = encoder.encodeCommitParams(
-            _amount,
-            IPoolCommitter.CommitType.LongMint,
-            agBal(_amount),
-            true
-        );
+        bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongMint, agBal(_amount), true);
         poolCommitter.commit(args);
         emit acquired(_amount);
         tradeLive = true;
     }
 
     function dispose(uint256 _amount) private {
-        bytes32 args = encoder.encodeCommitParams(
-            _amount,
-            IPoolCommitter.CommitType.LongBurn,
-            agBal(_amount),
-            true
-        );
+        bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongBurn, agBal(_amount), true);
         poolCommitter.commit(args);
         tradeLive = false;
     }
 
     function agBal(uint256 _amt) public view returns (bool) {
-        uint256 lTokens = poolCommitter
-            .getAggregateBalance(address(this))
-            .longTokens;
+        uint256 lTokens = poolCommitter.getAggregateBalance(address(this)).longTokens;
         lTokens > _amt ? true : false;
     }
 
     modifier onlyPlayer() {
-        require(
-            vault.balanceOf(address(msg.sender)) > 1,
-            "Only player can execute"
-        );
+        require(vault.balanceOf(address(msg.sender)) > 1, "Only player can execute");
         _;
     }
 }
