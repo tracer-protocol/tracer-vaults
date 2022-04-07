@@ -7,3 +7,6 @@
 [submodule "forge/lib/solmate"]
 	path = forge/lib/solmate
 	url = https://github.com/Rari-Capital/solmate
+[submodule "forge/lib/perpetual-pools-contracts"]
+	path = forge/lib/perpetual-pools-contracts
+	url = https://github.com/tracer-protocol/perpetual-pools-contracts
