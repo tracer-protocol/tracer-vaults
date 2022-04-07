@@ -12,6 +12,9 @@ jobs:
             - name: Install dependencies
               run: yarn install
 
+            - name: Install submodules
+              run: git submodule update --init --recursive
+
             - name: Compile contracts
               run: yarn build
 
@@ -35,6 +38,9 @@ jobs:
 
             - name: Install dependencies
               run: yarn install
+              
+            - name: Install submodules
+              run: git submodule update --init --recursive
 
             - name: Compile contracts
               run: yarn build
