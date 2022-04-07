@@ -2,6 +2,12 @@ name: Actions
 on:
     push
 
+env:
+  ## Sets environment variable
+  RPC_URL: ${{secrets.RPC_URL}}
+  PK: ${{secrets.PK}}
+  ETHERSCAN_API: ${{ETHERSCAN_API.PK}} 
+
 jobs:
     build:
         name: Run build
@@ -47,5 +53,3 @@ jobs:
             
             - name: Test contracts
               run: yarn test
-              env: 
-                RPC_URL: ${{secrets.RPC_URL}}
