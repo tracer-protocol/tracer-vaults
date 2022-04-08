@@ -5,8 +5,10 @@ import {L2Encoder} from "./utils/L2Encoder.sol";
 import {IPoolCommitter} from "./interfaces/IPoolCommitter.sol";
 import {ILeveragedPool} from "./interfaces/ILeveragedPool.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
+import {SafeMath} from "openzeppelin/utils/math/SafeMath.sol";
 
 contract longVault {
+    using SafeMath for uint256;
     ERC20 USDC;
     ERC20 THREELBTC;
     IPoolCommitter poolCommitter;
@@ -41,9 +43,8 @@ contract longVault {
 
     function checkSkew() public onlyPlayer {
         uint256 _skew = skew();
-        uint256 _bal = THREELBTC.balanceOf(address(this)); //todo  add aggregate balance
+        uint256 _bal = THREELBTC.balanceOf(address(this)).add(agBal());
         if (_skew > threshold) {
-            // TODO: and skew impact
             uint256 target = target();
 
             if (_bal < target) {
@@ -72,39 +73,54 @@ contract longVault {
     }
 
     function target() public view returns (uint256) {
-        //todo and add aggregate Balance
-        uint256 _bal = THREELBTC.balanceOf(address(this));
-        uint256 _skew = _bal / skew();
-        uint256 target = _skew - pool.longBalance();
+        uint256 _bal = THREELBTC.balanceOf(address(this)).add(agBal());
+        uint256 _skew = skew();
+        uint256 _target = pool.longBalance() / threshold;
+        uint256 target = _target.sub(pool.shortBalance());
         return target;
     }
 
     function acquiring() public view returns (uint256) {
-        uint256 _bal = THREELBTC.balanceOf(address(this));
-        return target() - _bal;
+        uint256 _bal = THREELBTC.balanceOf(address(this)).add(agBal());
+        return target().sub(_bal);
     }
 
     function disposing() public view returns (uint256) {
-        uint256 _bal = THREELBTC.balanceOf(address(this));
-        return _bal - target();
+        uint256 _bal = THREELBTC.balanceOf(address(this)).add(agBal());
+        return _bal.sub(target());
     }
 
     function acquire(uint256 _amount) private {
-        bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongMint, agBal(_amount), true);
+        bytes32 args = encoder.encodeCommitParams(
+            _amount,
+            IPoolCommitter.CommitType.LongMint,
+            agBalBool(_amount),
+            true
+        );
         poolCommitter.commit(args);
         emit acquired(_amount);
         tradeLive = true;
     }
 
     function dispose(uint256 _amount) private {
-        bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongBurn, agBal(_amount), true);
+        bytes32 args = encoder.encodeCommitParams(
+            _amount,
+            IPoolCommitter.CommitType.LongBurn,
+            agBalBool(_amount),
+            true
+        );
         poolCommitter.commit(args);
         tradeLive = false;
     }
 
-    function agBal(uint256 _amt) public view returns (bool) {
+    function agBalBool(uint256 _amt) public view returns (bool) {
         uint256 lTokens = poolCommitter.getAggregateBalance(address(this)).longTokens;
         lTokens > _amt ? true : false;
+    }
+
+    function agBal() public view returns (uint256) {
+        uint256 lTokens = poolCommitter.getAggregateBalance(address(this)).longTokens;
+        return lTokens;
     }
 
     modifier onlyPlayer() {
