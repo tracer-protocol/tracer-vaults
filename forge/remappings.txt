@@ -6,4 +6,4 @@ openzeppelin/=lib/openzeppelin-contracts/contracts/
 foundry-playground/=lib/foundry-playground/src/
 tracer/=lib/perpetual-pools-contracts/contracts/
 abdk-libraries-solidity/=lib/abdk-libraries-solidity/
-
+forge-std/=lib/forge-std/src/

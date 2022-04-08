@@ -5,28 +5,31 @@ import "ds-test/test.sol";
 import {vUSDC} from "../vUSDC.sol";
 import "../utils/ERC20TokenFaker.sol";
 import "../utils/FakeERC20.sol";
+import "./utils/Utilities.sol";
 
 import {ERC20, ERC4626} from "solmate/mixins/ERC4626.sol";
 import "openzeppelin/utils/Strings.sol";
 import {IStargate} from "../interfaces/IStargate.sol";
 
-interface Vm {
-    function warp(uint256 x) external;
+// interface Vm {
+//     function warp(uint256 x) external;
 
-    function expectRevert(bytes calldata) external;
+//     function expectRevert(bytes calldata) external;
 
-    function roll(uint256) external;
+//     function roll(uint256) external;
 
-    function prank(address) external;
-}
+//     function prank(address) external;
+// }
 
-contract vUSDCtest is DSTest, ERC20TokenFaker {
-    uint256 count;
+contract vUSDCtest is DSTest, ERC20TokenFaker{
     vUSDC vusd;
     FakeERC20 fakeUSDC;
     ERC20 UNDERLYING;
     FakeERC20 fakeSTG;
-    Vm constant vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
+    Utilities internal utils;
+    address payable[] internal users;
+    Vm internal immutable vm = Vm(HEVM_ADDRESS);
+    // Vm constant vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
 
     function setUp() public {
         fakeUSDC = fakeOutERC20(address(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8));
@@ -63,11 +66,29 @@ contract vUSDCtest is DSTest, ERC20TokenFaker {
             0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
         );
         vusd.deposit(1000000000, address(this));
+        utils = new Utilities();
+        users = utils.createUsers(5);
+
+    }
+    function setFeeFail() public {
+        address payable alice = users[0];
+        vm.prank(alice);
+        vusd.setFee(100);
+        vm.expectRevert();
+        assert(vusd.fee() == 0);
     }
 
     function testInitialBalance() public {
         assertEq(1000000000, vusd.balanceOf(address(this)));
     }
+    function testUserDeposit() public {
+        address payable alice = users[0];
+        vm.label(alice, "Alice");
+        assertEq(0, vusd.balanceOf(alice));
+        vusd.deposit(1000000000, alice);
+        assert(vusd.balanceOf(alice) > 1);
+    }
+
 
     // // test whole deposit flow
     function testDeposit() public {
@@ -78,12 +99,12 @@ contract vUSDCtest is DSTest, ERC20TokenFaker {
         emit log("deposit");
     }
 
-    function testDepositCompound() public {
-        fakeSTG = fakeOutERC20(address(0x6694340fc020c5E6B96567843da2df01b2CE1eb6));
-        fakeSTG._setBalance(address(vusd), 1e18);
-        vm.warp(2 days);
-        vusd.deposit(100000, address(this));
-    }
+    // function testDepositCompound() public {
+    //     fakeSTG = fakeOutERC20(address(0x6694340fc020c5E6B96567843da2df01b2CE1eb6));
+    //     fakeSTG._setBalance(address(vusd), 1e18);
+    //     vm.warp(2 days);
+    //     vusd.deposit(100000, address(this));
+    // }
 
     // test just reciept of LP tokens (comment out stake)
     // function testLP() public {
