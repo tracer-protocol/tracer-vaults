@@ -10,7 +10,11 @@ import {IRouter} from "./interfaces/IRouter.sol";
 import {IAsset, IBalancer} from "./interfaces/IBalancer.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 
-// Vault for depositing underlying (usdc) into stargate, compounding STG rewards through balancer for more underlying
+/// @title Vault for USDC stargate staking and compounding for more USDC
+/// @author koda
+/// @notice This contract is initialised with variables for the Arbitrum network
+/// @notice This contract passes all tests on ETH mainnet when substitued with mainnet variables
+/// @dev Gas optimisation is not implemented
 contract vUSDC is ERC4626, Ownable {
     using FixedPointMathLib for uint256;
     event balancerSwap(uint256 _amt);

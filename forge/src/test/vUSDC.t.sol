@@ -1,27 +1,23 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
-
+// disregard import failures
 import "ds-test/test.sol";
 import {vUSDC} from "../vUSDC.sol";
 import "../utils/ERC20TokenFaker.sol";
 import "../utils/FakeERC20.sol";
 import "./utils/Utilities.sol";
-
 import {ERC20, ERC4626} from "solmate/mixins/ERC4626.sol";
 import "openzeppelin/utils/Strings.sol";
 import {IStargate} from "../interfaces/IStargate.sol";
 
-// interface Vm {
-//     function warp(uint256 x) external;
+/// @title A Test for vUSDC
+/// @author koda
+/// @notice This test relies on FakeERC20.sol to test USDC deposits and staking
+/// @notice Utilities.sol provides some useful functions for creating users
+/// @notice VM is the cheatcode reference. eg. vm.warp(1 days) warps timestamp forward 1 day
+/// @dev Some tests require changes to origional contact (eg. LPTest)
 
-//     function expectRevert(bytes calldata) external;
-
-//     function roll(uint256) external;
-
-//     function prank(address) external;
-// }
-
-contract vUSDCtest is DSTest, ERC20TokenFaker{
+contract vUSDCtest is DSTest, ERC20TokenFaker {
     vUSDC vusd;
     FakeERC20 fakeUSDC;
     ERC20 UNDERLYING;
@@ -29,6 +25,7 @@ contract vUSDCtest is DSTest, ERC20TokenFaker{
     Utilities internal utils;
     address payable[] internal users;
     Vm internal immutable vm = Vm(HEVM_ADDRESS);
+
     // Vm constant vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
 
     function setUp() public {
@@ -68,8 +65,8 @@ contract vUSDCtest is DSTest, ERC20TokenFaker{
         vusd.deposit(1000000000, address(this));
         utils = new Utilities();
         users = utils.createUsers(5);
-
     }
+
     function setFeeFail() public {
         address payable alice = users[0];
         vm.prank(alice);
@@ -81,6 +78,7 @@ contract vUSDCtest is DSTest, ERC20TokenFaker{
     function testInitialBalance() public {
         assertEq(1000000000, vusd.balanceOf(address(this)));
     }
+
     function testUserDeposit() public {
         address payable alice = users[0];
         vm.label(alice, "Alice");
@@ -88,7 +86,6 @@ contract vUSDCtest is DSTest, ERC20TokenFaker{
         vusd.deposit(1000000000, alice);
         assert(vusd.balanceOf(alice) > 1);
     }
-
 
     // // test whole deposit flow
     function testDeposit() public {
