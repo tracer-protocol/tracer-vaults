@@ -3,8 +3,8 @@ pragma solidity ^0.8.10;
 
 import "ds-test/test.sol";
 import {vUSDC} from "../vUSDC.sol";
-import "foundry-playground/ERC20TokenFaker.sol";
-import "foundry-playground/FakeERC20.sol";
+import "../utils/ERC20TokenFaker.sol";
+import "../utils/FakeERC20.sol";
 
 import {ERC20, ERC4626} from "solmate/mixins/ERC4626.sol";
 import "openzeppelin/utils/Strings.sol";
