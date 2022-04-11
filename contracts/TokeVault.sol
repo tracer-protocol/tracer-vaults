@@ -7,12 +7,13 @@ import "./interfaces/tokemak/ILiquidityPool.sol";
 import "./interfaces/tokemak/IRewards.sol";
 import "./interfaces/uniswap/UniswapV2Router02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * A Tokemak compatible ERC4626 vault that takes in a tAsset and auto compounds toke rewards
  * received from staking that tAsset in toke.
  */
-contract TokeVault is ERC4626, Ownable {
+contract TokeVault is ERC4626, AccessControl {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
 
@@ -39,6 +40,11 @@ contract TokeVault is ERC4626, Ownable {
     uint24 public swapPoolFee = 3000; // default 0.3%
     uint256 public lastSwapTime = 0;
 
+    // RBAC
+    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ADMIN");
+    bytes32 public constant SAFETY_ROLE = keccak256("SAFETY_ADMIN");
+    bytes32 public constant CONFIG_ROLE = keccak256("CONFIG_ADMIN");
+
     /**
      * @param _tAsset the tAsset that this vault handles
      */
@@ -49,6 +55,7 @@ contract TokeVault is ERC4626, Ownable {
         address _feeReciever,
         address _toke,
         address[] memory _tradePath,
+        address _superAdmin,
         string memory name,
         string memory symbol
     ) ERC4626(ERC20(_tAsset), name, symbol) {
@@ -61,6 +68,9 @@ contract TokeVault is ERC4626, Ownable {
         feeReciever = _feeReciever;
         toke = ERC20(_toke);
         tradePath = _tradePath;
+
+        // setup default admin
+        _setupRole(DEFAULT_ADMIN_ROLE, _superAdmin);
     }
 
     function beforeWithdraw(uint256 underlyingAmount, uint256) internal override {
@@ -75,6 +85,7 @@ contract TokeVault is ERC4626, Ownable {
     /// is "managed" by Vault.
     function totalAssets() public view override returns (uint256) {
         // Simply read tAsset balance. Ignore outstanding rewards
+        // todo: Read tAsset balance AND tToke balance. Need some sort of Toke to tAsset oracle here.
         return tAsset.balanceOf(address(this));
     }
 
@@ -156,32 +167,32 @@ contract TokeVault is ERC4626, Ownable {
      * @dev remove once contract is audited and verified. This allows the owner to
      * withdraw any asset to themself. USE WITH CAUTION
      */
-    function withdrawAssets(address asset, uint256 amount) external onlyOwner {
-        ERC20(asset).safeTransfer(owner(), amount);
+    function withdrawAssets(address asset, uint256 amount) external onlyRole(SAFETY_ROLE) {
+        ERC20(asset).safeTransfer(msg.sender, amount);
     }
 
     /**
      * @notice allows the keeper reward to be modified
      */
-    function setKeeperReward(uint256 newKeeperReward) external onlyOwner {
+    function setKeeperReward(uint256 newKeeperReward) external onlyRole(CONFIG_ROLE) {
         keeperRewardAmount = newKeeperReward;
     }
 
     /**
      * @notice allows the max swap tokens to be modified
      */
-    function setMaxSwapTokens(uint256 newMaxSwapTokens) external onlyOwner {
+    function setMaxSwapTokens(uint256 newMaxSwapTokens) external onlyRole(CONFIG_ROLE) {
         maxSwapTokens = newMaxSwapTokens;
     }
 
     /**
      * @notice allows the max swap tokens to be modified
      */
-    function setSwapCooldown(uint256 newSwapCooldown) external onlyOwner {
+    function setSwapCooldown(uint256 newSwapCooldown) external onlyRole(CONFIG_ROLE) {
         swapCooldown = newSwapCooldown * 1 hours;
     }
 
-    function setFeeReciever(address newFeeReciever) external onlyOwner {
+    function setFeeReciever(address newFeeReciever) external onlyRole(CONFIG_ROLE) {
         feeReciever = newFeeReciever;
     }
 }

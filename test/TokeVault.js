@@ -26,6 +26,11 @@ describe("TokeVaultV1", async () => {
     // toke -> weth -> tcr
     const swapPath = [mainnetTOKE, mainnetWETH, mainnetTCR]
 
+    // rbac
+    const ORACLE_ROLE = ethers.utils.id("ORACLE_ADMIN")
+    const SAFETY_ROLE = ethers.utils.id("SAFETY_ADMIN")
+    const CONFIG_ROLE = ethers.utils.id("CONFIG_ADMIN")
+
     beforeEach(async () => {
         accounts = await ethers.getSigners()
         let vaultFactory = await ethers.getContractFactory("TokeVault")
@@ -86,12 +91,18 @@ describe("TokeVaultV1", async () => {
             accounts[0].address,
             toke.address,
             swapPath,
+            accounts[0].address, // super admin role (can set other roels)
             "Test tAsset Vault",
             "tAVT"
         )
 
         // set the sample payload to ensure that the vault recieves rewards
         samplePayload.payload.wallet = tokeVault.address
+
+        // setup RBAC
+        await tokeVault.grantRole(ORACLE_ROLE, accounts[2].address)
+        await tokeVault.grantRole(SAFETY_ROLE, accounts[1].address)
+        await tokeVault.grantRole(CONFIG_ROLE, accounts[3].address)
     })
 
     describe("claim", async () => {
@@ -193,16 +204,16 @@ describe("TokeVaultV1", async () => {
         })
     })
 
-    describe("safety functions", async () => {
-        it("only the owner can withdraw tokens", async () => {
+    describe.only("safety functions", async () => {
+        it("only the safety role can withdraw tokens", async () => {
             await expect(
                 tokeVault
                     .connect(accounts[3])
                     .withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
-            ).to.be.revertedWith("Ownable: caller is not the owner")
+            ).to.be.revertedWith(`AccessControl: account ${accounts[3].address.toLowerCase()} is missing role ${SAFETY_ROLE.toString().toLowerCase()}`)
         })
 
-        it("the owner is able to withdraw any tokens", async () => {
+        it("the safety admin is able to withdraw any tokens", async () => {
             // deposit
             await tTCR.approve(tokeVault.address, ethers.utils.parseEther("1"))
             await tokeVault.deposit(
@@ -211,29 +222,29 @@ describe("TokeVaultV1", async () => {
             )
 
             // withdraw assets back to owner bypassing system
-            let ownerBaltTCR = await tTCR.balanceOf(accounts[0].address)
+            let safetyAdminBalance = await tTCR.balanceOf(accounts[1].address)
             await tokeVault
-                .connect(accounts[0])
+                .connect(accounts[1])
                 .withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
-            let ownerBaltTCRAfter = await tTCR.balanceOf(accounts[0].address)
-            expect(ownerBaltTCRAfter.sub(ownerBaltTCR).toString()).to.equal(
+            let safetyAdminBalanceAfter = await tTCR.balanceOf(accounts[1].address)
+            expect(safetyAdminBalanceAfter.sub(safetyAdminBalance).toString()).to.equal(
                 ethers.utils.parseEther("1").toString()
             )
         })
     })
 
     describe("setKeeperReward", async () => {
-        it("reverts if not called by owner", async () => {
+        it("reverts if not called by config role", async () => {
             await expect(
                 tokeVault
-                    .connect(accounts[3])
+                    .connect(accounts[1])
                     .setKeeperReward(ethers.utils.parseEther("1"))
-            ).to.be.revertedWith("Ownable: caller is not the owner")
+            ).to.be.revertedWith(`AccessControl: account ${accounts[3].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`)
         })
 
         it("sets", async () => {
             await tokeVault
-                .connect(accounts[0])
+                .connect(accounts[3])
                 .setKeeperReward(ethers.utils.parseEther("1"))
             let keeperRewards = await tokeVault.keeperRewardAmount()
             expect(keeperRewards.toString()).to.eq(
@@ -243,17 +254,17 @@ describe("TokeVaultV1", async () => {
     })
 
     describe("setMaxSwapTokens", async () => {
-        it("reverts if not called by owner", async () => {
+        it("reverts if not called by config role", async () => {
             await expect(
                 tokeVault
-                    .connect(accounts[3])
+                    .connect(accounts[1])
                     .setMaxSwapTokens(ethers.utils.parseEther("1"))
-            ).to.be.revertedWith("Ownable: caller is not the owner")
+            ).to.be.revertedWith(`AccessControl: account ${accounts[3].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`)
         })
 
         it("sets", async () => {
             await tokeVault
-                .connect(accounts[0])
+                .connect(accounts[3])
                 .setMaxSwapTokens(ethers.utils.parseEther("1"))
             let maxSwapTokens = await tokeVault.maxSwapTokens()
             expect(maxSwapTokens.toString()).to.eq(
@@ -266,14 +277,14 @@ describe("TokeVaultV1", async () => {
         it("reverts if not called by owner", async () => {
             await expect(
                 tokeVault
-                    .connect(accounts[3])
+                    .connect(accounts[1])
                     .setSwapCooldown(ethers.utils.parseEther("1"))
-            ).to.be.revertedWith("Ownable: caller is not the owner")
+            ).to.be.revertedWith(`AccessControl: account ${accounts[3].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`)
         })
 
         it("sets", async () => {
             // set swap cooldown to 2 hours
-            await tokeVault.connect(accounts[0]).setSwapCooldown(2)
+            await tokeVault.connect(accounts[3]).setSwapCooldown(2)
             let swapCooldown = await tokeVault.swapCooldown()
             expect(swapCooldown.toString()).to.eq(
                 parseInt(2 * 60 * 60).toString()
@@ -285,14 +296,14 @@ describe("TokeVaultV1", async () => {
         it("reverts if not called by owner", async () => {
             await expect(
                 tokeVault
-                    .connect(accounts[3])
+                    .connect(accounts[1])
                     .setFeeReciever(accounts[5].address)
-            ).to.be.revertedWith("Ownable: caller is not the owner")
+            ).to.be.revertedWith(`AccessControl: account ${accounts[3].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`)
         })
 
         it("sets", async () => {
             await tokeVault
-                .connect(accounts[0])
+                .connect(accounts[3])
                 .setFeeReciever(accounts[5].address)
             let feeReceiver = await tokeVault.feeReciever()
             expect(feeReceiver).to.eq(accounts[5].address)
