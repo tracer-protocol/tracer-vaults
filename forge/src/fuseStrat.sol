@@ -21,7 +21,7 @@ interface IFToken {
 }
 
 contract FuseStrat {
-    string public  name;
+    string public name;
     address public immutable fToken;
 
     address public immutable uToken;
