@@ -1,3 +1,21 @@
 [submodule "lib/solmate"]
 	path = lib/solmate
 	url = https://github.com/Rari-Capital/solmate
+[submodule "forge/lib/ds-test"]
+	path = forge/lib/ds-test
+	url = https://github.com/dapphub/ds-test
+[submodule "forge/lib/solmate"]
+	path = forge/lib/solmate
+	url = https://github.com/Rari-Capital/solmate
+[submodule "forge/lib/perpetual-pools-contracts"]
+	path = forge/lib/perpetual-pools-contracts
+	url = https://github.com/tracer-protocol/perpetual-pools-contracts
+[submodule "forge/lib/abdk-libraries-solidity"]
+	path = forge/lib/abdk-libraries-solidity
+	url = https://github.com/abdk-consulting/abdk-libraries-solidity
+[submodule "forge/lib/openzeppelin-contracts"]
+	path = forge/lib/openzeppelin-contracts
+	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "forge/lib/forge-std"]
+	path = forge/lib/forge-std
+	url = https://github.com/brockelmore/forge-std
