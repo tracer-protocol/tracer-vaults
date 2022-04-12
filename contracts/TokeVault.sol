@@ -8,6 +8,7 @@ import "./interfaces/tokemak/IRewards.sol";
 import "./interfaces/uniswap/UniswapV2Router02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "hardhat/console.sol";
 
 /**
  * A Tokemak compatible ERC4626 vault that takes in a tAsset and auto compounds toke rewards
@@ -31,8 +32,12 @@ contract TokeVault is ERC4626, AccessControl {
     // max swap amount for uniswap trade. This amount can be swapped every swapCooldown hours
     uint256 public maxSwapTokens = 100000000000000000000;
     uint256 public swapCooldown = 12 hours;
-    // address that gets 9% of generated yield
+    // address that gets a percent of generated yield
     address public feeReciever;
+    // WAD value representing the percent of rewards to sell for underlying. Represented as a decimal. Default = 100% = 1
+    uint256 public sellPercent = 1000000000000000000;
+    // amount of rewards to be sold. Updated each time rewards are received.
+    uint256 public rewardsToSell;
 
     // uniswap
     address public immutable swapRouter;
@@ -41,9 +46,9 @@ contract TokeVault is ERC4626, AccessControl {
     uint256 public lastSwapTime = 0;
 
     // RBAC
-    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ADMIN");
     bytes32 public constant SAFETY_ROLE = keccak256("SAFETY_ADMIN");
     bytes32 public constant CONFIG_ROLE = keccak256("CONFIG_ADMIN");
+    bytes32 public constant OPTIMISER_ROLE = keccak256("OPTIMISER_ROLE");
 
     /**
      * @param _tAsset the tAsset that this vault handles
@@ -100,10 +105,23 @@ contract TokeVault is ERC4626, AccessControl {
         bytes32 s
     ) public {
         // claim toke rewards
+        uint256 rewardsBefore = toke.balanceOf(address(this));
         rewards.claim(recipient, v, r, s);
+        // take the keeper reward out of these rewards before pre computing
+        // todo may underflow if claim amount < keeperRewardAmount
+        uint256 rewardsReceived = toke.balanceOf(address(this)) - rewardsBefore - keeperRewardAmount;
 
-        // reward the claimer for executing this claim - rewarded in reward tokens
+        // take performance fee
+        uint256 performanceFee = rewardsReceived / 10;
+        rewardsReceived = rewardsReceived - performanceFee;
+
+        // compute amount of these rewards to sell
+        rewardsToSell += rewardsReceived.mulWadUp(sellPercent);
+
+        // transfers
+        toke.safeTransfer(feeReciever, performanceFee);
         toke.safeTransfer(msg.sender, keeperRewardAmount);
+
     }
 
     /**
@@ -117,37 +135,31 @@ contract TokeVault is ERC4626, AccessControl {
         // find the asset the tokemak pool is settled in
         ERC20 underlying = ERC20(tokemakPool.underlyer());
 
+        // compute amount of rewards to sell, and amount to keep
         // cap at max toke swap amount
-        uint256 tokeBal = toke.balanceOf(address(this));
-        uint256 swapAmount = tokeBal >= maxSwapTokens ? maxSwapTokens : tokeBal;
-
-        // sell toke rewards earned for underlying asset
-        // dealing with slippage
-        // option 2: have a max sale amount with a cooldown period?
-        // note: slippage here will only ever be upward pressure on the tAsset but you still want to optimise this
-        toke.safeApprove(swapRouter, swapAmount);
+        uint256 swapAmount = rewardsToSell >= maxSwapTokens ? maxSwapTokens : rewardsToSell;
 
         // approve the router
         UniswapV2Router02 router = UniswapV2Router02(swapRouter);
+        toke.safeApprove(swapRouter, swapAmount);
 
         // swap from toke to underlying asset to deposit back into toke
-        router.swapExactTokensForTokens(swapAmount, 1, tradePath, address(this), block.timestamp + 30 minutes);
-
-        // deposit all of underlying back into toke and take service fee
         uint256 underlyingBal = underlying.balanceOf(address(this));
-        // deposit 90% back into toke, take 1% keeper fee, take 9% service fee.
-        // todo: This could be configurable in the future
-        uint256 depositAmount = underlyingBal - (underlyingBal / 10); // 90%
-        uint256 keeperFee = underlyingBal / 100;
-        uint256 serviceFee = underlyingBal - depositAmount - keeperFee;
+        router.swapExactTokensForTokens(swapAmount, 1, tradePath, address(this), block.timestamp + 30 minutes);
+        uint256 underlyingReceived = underlying.balanceOf(address(this)) - underlyingBal;
 
         // mark this as swap time
         lastSwapTime = block.timestamp;
+        
+        // compute keeper fee and deposit amount
+        uint256 keeperFee = underlyingReceived / 100;
+        uint256 depositAmount = underlyingReceived - keeperFee;
 
-        // transfer all the tokes
+        // deposit underlying back into tokemak
         underlying.safeApprove(address(tokemakPool), depositAmount);
         tokemakPool.deposit(depositAmount);
-        underlying.safeTransfer(feeReciever, serviceFee);
+        
+        // transfer keeper fee
         underlying.safeTransfer(msg.sender, keeperFee);
     }
 
@@ -192,7 +204,18 @@ contract TokeVault is ERC4626, AccessControl {
         swapCooldown = newSwapCooldown * 1 hours;
     }
 
+    /**
+    * @notice Sets the account that receives profit fees
+    */
     function setFeeReciever(address newFeeReciever) external onlyRole(CONFIG_ROLE) {
         feeReciever = newFeeReciever;
+    }
+
+    /**
+    * @notice Sets the percent of rewards to sell for underlying such that yield is optimised
+    */
+    function setUnderlyingTarget(uint newSellPercent) external onlyRole(OPTIMISER_ROLE) {
+        require(newSellPercent <= 100000000000000000000, "sell percent greater than 100");
+        sellPercent = newSellPercent;
     }
 }
