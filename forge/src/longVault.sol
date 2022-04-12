@@ -73,7 +73,7 @@ contract longVault {
 
     function target() public view returns (uint256) {
         //todo and add aggregate Balance
-        uint256 _bal = THREELBTC.balanceOf(address(this));
+        uint256 _bal = pool.shortBalance();
         uint256 _skew = _bal / skew();
         uint256 target = _skew - pool.longBalance();
         return target;
