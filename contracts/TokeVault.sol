@@ -121,7 +121,6 @@ contract TokeVault is ERC4626, AccessControl {
         // transfers
         toke.safeTransfer(feeReciever, performanceFee);
         toke.safeTransfer(msg.sender, keeperRewardAmount);
-
     }
 
     /**
@@ -150,7 +149,7 @@ contract TokeVault is ERC4626, AccessControl {
 
         // mark this as swap time
         lastSwapTime = block.timestamp;
-        
+
         // compute keeper fee and deposit amount
         uint256 keeperFee = underlyingReceived / 100;
         uint256 depositAmount = underlyingReceived - keeperFee;
@@ -158,7 +157,7 @@ contract TokeVault is ERC4626, AccessControl {
         // deposit underlying back into tokemak
         underlying.safeApprove(address(tokemakPool), depositAmount);
         tokemakPool.deposit(depositAmount);
-        
+
         // transfer keeper fee
         underlying.safeTransfer(msg.sender, keeperFee);
     }
@@ -205,16 +204,16 @@ contract TokeVault is ERC4626, AccessControl {
     }
 
     /**
-    * @notice Sets the account that receives profit fees
-    */
+     * @notice Sets the account that receives profit fees
+     */
     function setFeeReciever(address newFeeReciever) external onlyRole(CONFIG_ROLE) {
         feeReciever = newFeeReciever;
     }
 
     /**
-    * @notice Sets the percent of rewards to sell for underlying such that yield is optimised
-    */
-    function setUnderlyingTarget(uint newSellPercent) external onlyRole(OPTIMISER_ROLE) {
+     * @notice Sets the percent of rewards to sell for underlying such that yield is optimised
+     */
+    function setUnderlyingTarget(uint256 newSellPercent) external onlyRole(OPTIMISER_ROLE) {
         require(newSellPercent <= 100000000000000000000, "sell percent greater than 100");
         sellPercent = newSellPercent;
     }

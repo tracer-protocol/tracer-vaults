@@ -2,7 +2,13 @@ const { expect, assert } = require("chai")
 const { network, ethers } = require("hardhat")
 
 describe("TokeVaultV1", async () => {
-    let tokeVault, toke, tcr, tTCR, tokeRewards, impersonatedAccount, impersonatedTokeAccount
+    let tokeVault,
+        toke,
+        tcr,
+        tTCR,
+        tokeRewards,
+        impersonatedAccount,
+        impersonatedTokeAccount
     const mainnetTOKE = "0x2e9d63788249371f1DFC918a52f8d799F4a38C94"
     const mainnetTCR = "0x9C4A4204B79dd291D6b6571C5BE8BbcD0622F050"
     const mainnettTCR = "0x15A629f0665A3Eb97D7aE9A7ce7ABF73AeB79415"
@@ -146,12 +152,14 @@ describe("TokeVaultV1", async () => {
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
             let callerTokeBefore = await toke.balanceOf(accounts[6].address)
             // claim from the vault
-            await tokeVault.connect(accounts[6]).claim(
-                samplePayload.payload,
-                samplePayload.signature.v,
-                samplePayload.signature.r,
-                samplePayload.signature.s
-            )
+            await tokeVault
+                .connect(accounts[6])
+                .claim(
+                    samplePayload.payload,
+                    samplePayload.signature.v,
+                    samplePayload.signature.r,
+                    samplePayload.signature.s
+                )
 
             let tokeBalanceAfter = await toke.balanceOf(tokeVault.address)
             let callerTokeAfter = await toke.balanceOf(accounts[6].address)
@@ -182,12 +190,14 @@ describe("TokeVaultV1", async () => {
         })
         it("performs a swap from toke to TCR and deposits", async () => {
             // mock a 100 Toke claim to ensure there is sellable Toke rewards on hand
-            await tokeVault.connect(accounts[6]).claim(
-                samplePayload.payload,
-                samplePayload.signature.v,
-                samplePayload.signature.r,
-                samplePayload.signature.s
-            )
+            await tokeVault
+                .connect(accounts[6])
+                .claim(
+                    samplePayload.payload,
+                    samplePayload.signature.v,
+                    samplePayload.signature.r,
+                    samplePayload.signature.s
+                )
 
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
             let tTCRBalanaceBefore = await tTCR.balanceOf(tokeVault.address)
@@ -216,12 +226,14 @@ describe("TokeVaultV1", async () => {
 
         it("limits the swap to maxSwapTokens TOKE", async () => {
             // mock a 200 Toke claim to ensure there is sellable Toke rewards on hand
-                await tokeVault.connect(accounts[6]).claim(
-                samplePayloadLarge.payload,
-                samplePayloadLarge.signature.v,
-                samplePayloadLarge.signature.r,
-                samplePayloadLarge.signature.s
-            )
+            await tokeVault
+                .connect(accounts[6])
+                .claim(
+                    samplePayloadLarge.payload,
+                    samplePayloadLarge.signature.v,
+                    samplePayloadLarge.signature.r,
+                    samplePayloadLarge.signature.s
+                )
 
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
             let maxSwapTokens = await tokeVault.maxSwapTokens()
@@ -237,12 +249,14 @@ describe("TokeVaultV1", async () => {
         })
 
         it("reverts if being called to frequently", async () => {
-            await tokeVault.connect(accounts[6]).claim(
-                samplePayload.payload,
-                samplePayload.signature.v,
-                samplePayload.signature.r,
-                samplePayload.signature.s
-            )
+            await tokeVault
+                .connect(accounts[6])
+                .claim(
+                    samplePayload.payload,
+                    samplePayload.signature.v,
+                    samplePayload.signature.r,
+                    samplePayload.signature.s
+                )
 
             await tokeVault.compound()
             let canCompound = await tokeVault.canCompound()
@@ -260,7 +274,9 @@ describe("TokeVaultV1", async () => {
                 tokeVault
                     .connect(accounts[3])
                     .withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
-            ).to.be.revertedWith(`AccessControl: account ${accounts[3].address.toLowerCase()} is missing role ${SAFETY_ROLE.toString().toLowerCase()}`)
+            ).to.be.revertedWith(
+                `AccessControl: account ${accounts[3].address.toLowerCase()} is missing role ${SAFETY_ROLE.toString().toLowerCase()}`
+            )
         })
 
         it("the safety admin is able to withdraw any tokens", async () => {
@@ -276,10 +292,12 @@ describe("TokeVaultV1", async () => {
             await tokeVault
                 .connect(accounts[1])
                 .withdrawAssets(tTCR.address, ethers.utils.parseEther("1"))
-            let safetyAdminBalanceAfter = await tTCR.balanceOf(accounts[1].address)
-            expect(safetyAdminBalanceAfter.sub(safetyAdminBalance).toString()).to.equal(
-                ethers.utils.parseEther("1").toString()
+            let safetyAdminBalanceAfter = await tTCR.balanceOf(
+                accounts[1].address
             )
+            expect(
+                safetyAdminBalanceAfter.sub(safetyAdminBalance).toString()
+            ).to.equal(ethers.utils.parseEther("1").toString())
         })
     })
 
@@ -289,7 +307,9 @@ describe("TokeVaultV1", async () => {
                 tokeVault
                     .connect(accounts[1])
                     .setKeeperReward(ethers.utils.parseEther("1"))
-            ).to.be.revertedWith(`AccessControl: account ${accounts[1].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`)
+            ).to.be.revertedWith(
+                `AccessControl: account ${accounts[1].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`
+            )
         })
 
         it("sets", async () => {
@@ -309,7 +329,9 @@ describe("TokeVaultV1", async () => {
                 tokeVault
                     .connect(accounts[1])
                     .setMaxSwapTokens(ethers.utils.parseEther("1"))
-            ).to.be.revertedWith(`AccessControl: account ${accounts[1].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`)
+            ).to.be.revertedWith(
+                `AccessControl: account ${accounts[1].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`
+            )
         })
 
         it("sets", async () => {
@@ -329,7 +351,9 @@ describe("TokeVaultV1", async () => {
                 tokeVault
                     .connect(accounts[1])
                     .setSwapCooldown(ethers.utils.parseEther("1"))
-            ).to.be.revertedWith(`AccessControl: account ${accounts[1].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`)
+            ).to.be.revertedWith(
+                `AccessControl: account ${accounts[1].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`
+            )
         })
 
         it("sets", async () => {
@@ -348,7 +372,9 @@ describe("TokeVaultV1", async () => {
                 tokeVault
                     .connect(accounts[1])
                     .setFeeReciever(accounts[5].address)
-            ).to.be.revertedWith(`AccessControl: account ${accounts[1].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`)
+            ).to.be.revertedWith(
+                `AccessControl: account ${accounts[1].address.toLowerCase()} is missing role ${CONFIG_ROLE.toString().toLowerCase()}`
+            )
         })
 
         it("sets", async () => {
