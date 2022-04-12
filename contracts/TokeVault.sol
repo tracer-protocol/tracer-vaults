@@ -8,7 +8,6 @@ import "./interfaces/tokemak/IRewards.sol";
 import "./interfaces/uniswap/UniswapV2Router02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "hardhat/console.sol";
 
 /**
  * A Tokemak compatible ERC4626 vault that takes in a tAsset and auto compounds toke rewards
