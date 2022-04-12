@@ -23,7 +23,8 @@ contract TokeVault is ERC4626, AccessControl {
     ERC20 public immutable tAsset;
 
     // tokemak contracts
-    ILiquidityPool public immutable tokemakPool;
+    ILiquidityPool public immutable underlyingPool;
+    ILiquidityPool public immutable tokePool;
     IRewards public immutable rewards;
 
     // CONFIGURABLE PARAMS
@@ -61,13 +62,15 @@ contract TokeVault is ERC4626, AccessControl {
         address _toke,
         address[] memory _tradePath,
         address _superAdmin,
+        address _tokeDepositPool,
         string memory name,
         string memory symbol
     ) ERC4626(ERC20(_tAsset), name, symbol) {
         // erc20 representation of toke pool
         tAsset = ERC20(_tAsset);
         // pool representation of toke pool
-        tokemakPool = ILiquidityPool(_tAsset);
+        underlyingPool = ILiquidityPool(_tAsset);
+        tokePool = ILiquidityPool(_tokeDepositPool);
         rewards = IRewards(_rewards);
         swapRouter = _swapRouter;
         feeReciever = _feeReciever;
@@ -80,6 +83,8 @@ contract TokeVault is ERC4626, AccessControl {
 
     function beforeWithdraw(uint256 underlyingAmount, uint256) internal override {
         // no after withdraw
+        // todo: Logic for ensuring we have enough underlying on hand. if not we need to sell
+        // some tToke for underlying.
     }
 
     function afterDeposit(uint256 underlyingAmount, uint256) internal override {
@@ -118,9 +123,18 @@ contract TokeVault is ERC4626, AccessControl {
         // compute amount of these rewards to sell
         rewardsToSell += rewardsReceived.mulWadUp(sellPercent);
 
-        // transfers
+        // deposit the rest back into Tokemak. Note: rewardsReceived >= rewardsToSell
+        uint256 rewardsToDeposit = rewardsReceived - rewardsToSell;
+
+        // transfers and deposits
         toke.safeTransfer(feeReciever, performanceFee);
         toke.safeTransfer(msg.sender, keeperRewardAmount);
+
+        // only deposit if there is an amount to deposit
+        if (rewardsToDeposit != 0) {
+            toke.safeApprove(address(tokePool), rewardsToDeposit);
+            tokePool.deposit(rewardsToDeposit);
+        }
     }
 
     /**
@@ -132,7 +146,7 @@ contract TokeVault is ERC4626, AccessControl {
         require(canCompound(), "not ready to compound");
 
         // find the asset the tokemak pool is settled in
-        ERC20 underlying = ERC20(tokemakPool.underlyer());
+        ERC20 underlying = ERC20(underlyingPool.underlyer());
 
         // compute amount of rewards to sell, and amount to keep
         // cap at max toke swap amount
@@ -155,8 +169,8 @@ contract TokeVault is ERC4626, AccessControl {
         uint256 depositAmount = underlyingReceived - keeperFee;
 
         // deposit underlying back into tokemak
-        underlying.safeApprove(address(tokemakPool), depositAmount);
-        tokemakPool.deposit(depositAmount);
+        underlying.safeApprove(address(underlyingPool), depositAmount);
+        underlyingPool.deposit(depositAmount);
 
         // transfer keeper fee
         underlying.safeTransfer(msg.sender, keeperFee);
@@ -213,8 +227,8 @@ contract TokeVault is ERC4626, AccessControl {
     /**
      * @notice Sets the percent of rewards to sell for underlying such that yield is optimised
      */
-    function setUnderlyingTarget(uint256 newSellPercent) external onlyRole(OPTIMISER_ROLE) {
-        require(newSellPercent <= 100000000000000000000, "sell percent greater than 100");
+    function setRewardSellPercent(uint256 newSellPercent) external onlyRole(OPTIMISER_ROLE) {
+        require(newSellPercent <= 1000000000000000000, "sell percent greater than 100%");
         sellPercent = newSellPercent;
     }
 }
