@@ -185,7 +185,7 @@ contract TokeVault is ERC4626, AccessControl {
     function canCompound() public view returns (bool) {
         // has enough time passed?
         bool hasTimePassed = block.timestamp > lastSwapTime + swapCooldown;
-        bool hasSellableBalance = toke.balanceOf(address(this)) != 0 && rewardsToSell != 0; 
+        bool hasSellableBalance = toke.balanceOf(address(this)) != 0 && rewardsToSell != 0;
         return hasTimePassed && hasSellableBalance;
     }
 
