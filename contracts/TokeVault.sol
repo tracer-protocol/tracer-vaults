@@ -35,6 +35,8 @@ contract TokeVault is ERC4626, AccessControl {
     uint256 public swapCooldown = 12 hours;
     // address that gets a percent of generated yield
     address public feeReciever;
+    // performance fee that goes to fee reciever. Default = 10% = 0.1
+    uint256 public performanceFee = 100000000000000000;
     // WAD value representing the percent of rewards to sell for underlying. Represented as a decimal. Default = 100% = 1
     uint256 public sellPercent = 1000000000000000000;
     // amount of rewards to be sold. Updated each time rewards are received.
@@ -117,8 +119,8 @@ contract TokeVault is ERC4626, AccessControl {
         uint256 rewardsReceived = toke.balanceOf(address(this)) - rewardsBefore - keeperRewardAmount;
 
         // take performance fee
-        uint256 performanceFee = rewardsReceived / 10;
-        rewardsReceived = rewardsReceived - performanceFee;
+        uint256 fee = rewardsReceived.mulWadUp(performanceFee);
+        rewardsReceived = rewardsReceived - fee;
 
         // compute amount of these rewards to sell
         rewardsToSell += rewardsReceived.mulWadUp(sellPercent);
@@ -127,7 +129,7 @@ contract TokeVault is ERC4626, AccessControl {
         uint256 rewardsToDeposit = rewardsReceived - rewardsToSell;
 
         // transfers and deposits
-        toke.safeTransfer(feeReciever, performanceFee);
+        toke.safeTransfer(feeReciever, fee);
         toke.safeTransfer(msg.sender, keeperRewardAmount);
 
         // only deposit if there is an amount to deposit
