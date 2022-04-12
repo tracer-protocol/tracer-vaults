@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.1;
-import {ILeveragedPool} from "./interfaces/ILeveragedPool.sol";
+pragma solidity ^0.8.0;
+import {ILeveragedPool} from "./interfaces/tracer/ILeveragedPool.sol";
 import {L2Encoder} from "./utils/L2Encoder.sol";
-import {IPoolCommitter} from "./interfaces/IPoolCommitter.sol";
-import {ILeveragedPool} from "./interfaces/ILeveragedPool.sol";
+import {IPoolCommitter} from "./interfaces/tracer/IPoolCommitter.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 
-contract longVault {
+contract LongSkewVault {
     ERC20 USDC;
     ERC20 THREELBTC;
     IPoolCommitter poolCommitter;

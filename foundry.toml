@@ -1,7 +1,7 @@
 [default]
-src = 'src'
+src = 'contracts'
 out = 'out'
 libs = ['lib']
-remappings = ['ds-test/=lib/ds-test/src/']
+remappings = ['@openzeppelin/=node_modules/@openzeppelin/contracts/']
 
 # See more config options https://github.com/gakonst/foundry/tree/master/config
