@@ -180,7 +180,6 @@ describe("TokeVaultV1", async () => {
         })
 
         it("deposits rewards back into Tokemak", async () => {
-
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
             let callerTokeBefore = await toke.balanceOf(accounts[6].address)
             // claim from the vault
@@ -212,7 +211,6 @@ describe("TokeVaultV1", async () => {
             expect(callerTokeAfter.sub(callerTokeBefore).toString()).to.equal(
                 fee.toString()
             )
-
         })
     })
 
