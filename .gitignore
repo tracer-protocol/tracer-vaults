@@ -8,4 +8,6 @@ hardhat.config.js
 # Coverage
 coverage
 coverage.json
+# Deployments
+deployments
 
