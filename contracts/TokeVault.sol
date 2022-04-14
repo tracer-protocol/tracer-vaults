@@ -83,9 +83,17 @@ contract TokeVault is ERC4626, AccessControl {
     }
 
     function beforeWithdraw(uint256 underlyingAmount, uint256) internal override {
-        // no after withdraw
-        // todo: Logic for ensuring we have enough underlying on hand. if not we need to sell
-        // some tToke for underlying.
+        // ensure enough underlying is on hand
+        ERC20 underlying = ERC20(underlyingPool.underlyer());
+        if (underlyingAmount > underlying.balanceOf(address(this))) {
+            // if we have sellable toke, trigger a sale
+            if (rewardsToSell != 0) {
+                // sell the max possible
+                uint256 swapAmount = rewardsToSell >= maxSwapTokens ? maxSwapTokens : rewardsToSell;
+                sellRewards(swapAmount);
+            }
+
+        }
     }
 
     function afterDeposit(uint256 underlyingAmount, uint256) internal override {
@@ -153,14 +161,7 @@ contract TokeVault is ERC4626, AccessControl {
         // cap at max toke swap amount
         uint256 swapAmount = rewardsToSell >= maxSwapTokens ? maxSwapTokens : rewardsToSell;
 
-        // approve the router
-        UniswapV2Router02 router = UniswapV2Router02(swapRouter);
-        toke.safeApprove(swapRouter, swapAmount);
-
-        // swap from toke to underlying asset to deposit back into toke
-        uint256 underlyingBal = underlying.balanceOf(address(this));
-        router.swapExactTokensForTokens(swapAmount, 1, tradePath, address(this), block.timestamp + 30 minutes);
-        uint256 underlyingReceived = underlying.balanceOf(address(this)) - underlyingBal;
+        uint256 underlyingReceived = sellRewards(swapAmount);
 
         // mark this as swap time
         lastSwapTime = block.timestamp;
@@ -186,6 +187,24 @@ contract TokeVault is ERC4626, AccessControl {
         bool hasTimePassed = block.timestamp > lastSwapTime + swapCooldown;
         bool hasSellableBalance = toke.balanceOf(address(this)) != 0 && rewardsToSell != 0;
         return hasTimePassed && hasSellableBalance;
+    }
+
+    /**
+    * @notice Sells the reward token for the vault underlying token.
+    * @return the amount of underlying tokens received as part of the sale
+    */
+    function sellRewards(uint256 amount) internal returns(uint256) {
+        
+        ERC20 underlying = ERC20(underlyingPool.underlyer());
+
+        // approve the router
+        UniswapV2Router02 router = UniswapV2Router02(swapRouter);
+        toke.safeApprove(swapRouter, amount);
+
+        // swap from reward to underlying asset
+        uint256 underlyingBal = underlying.balanceOf(address(this));
+        router.swapExactTokensForTokens(amount, 1, tradePath, address(this), block.timestamp + 30 minutes);
+        return underlying.balanceOf(address(this)) - underlyingBal;
     }
 
     /**
