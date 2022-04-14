@@ -1,7 +1,7 @@
 const { expect, assert } = require("chai")
 const { network, ethers } = require("hardhat")
 
-describe.only("TokeVaultV1", async () => {
+describe("TokeVaultV1", async () => {
     let tokeVault,
         toke,
         tcr,
@@ -14,7 +14,6 @@ describe.only("TokeVaultV1", async () => {
     const mainnettTCR = "0x15A629f0665A3Eb97D7aE9A7ce7ABF73AeB79415"
     const sushiRouter = "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F"
     const mainnetWETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-    const mainnetTokePool = "0x96F98Ed74639689C3A11daf38ef86E59F43417D3"
     let samplePayload = {
         payload: {
             wallet: "0x95e8c5a56acc8064311d79946c7be87a1e90d17f",
@@ -49,7 +48,6 @@ describe.only("TokeVaultV1", async () => {
     const swapPath = [mainnetTOKE, mainnetWETH, mainnetTCR]
 
     // rbac
-    const OPTIMISER_ROLE = ethers.utils.id("OPTIMISER_ROLE")
     const SAFETY_ROLE = ethers.utils.id("SAFETY_ADMIN")
     const CONFIG_ROLE = ethers.utils.id("CONFIG_ADMIN")
 
@@ -128,7 +126,6 @@ describe.only("TokeVaultV1", async () => {
             toke.address,
             swapPath,
             accounts[0].address, // super admin role (can set other roels)
-            mainnetTokePool,
             "Test tAsset Vault",
             "tAVT"
         )
@@ -138,7 +135,6 @@ describe.only("TokeVaultV1", async () => {
         samplePayloadLarge.payload.wallet = tokeVault.address
 
         // setup RBAC
-        await tokeVault.grantRole(OPTIMISER_ROLE, accounts[2].address)
         await tokeVault.grantRole(SAFETY_ROLE, accounts[1].address)
         await tokeVault.grantRole(CONFIG_ROLE, accounts[3].address)
     })
@@ -181,17 +177,9 @@ describe.only("TokeVaultV1", async () => {
             expect(callerTokeAfter.sub(callerTokeBefore).toString()).to.equal(
                 fee.toString()
             )
-
-            // validate that rewardsToSell is updated
-            let rewardsToSell = await tokeVault.rewardsToSell()
-            expect(rewardsToSell.toString()).to.equal(expectedAmount.toString())
         })
 
         it("deposits rewards back into Tokemak", async () => {
-            // set only 00% of the funds to be sold. 10% should be deposited into tokemak.
-            await tokeVault
-                .connect(accounts[2])
-                .setRewardSellPercent(ethers.utils.parseEther("0.9"))
 
             let tokeBalanceBefore = await toke.balanceOf(tokeVault.address)
             let callerTokeBefore = await toke.balanceOf(accounts[6].address)
@@ -217,8 +205,6 @@ describe.only("TokeVaultV1", async () => {
             let expectedAmount = payloadAmount.sub(fee) // 1.5 toke fee
             expectedAmount = expectedAmount.sub(expectedAmount.div(10)) // 10% performance fee also taken on claim
             let expectedTokeAmount = expectedAmount
-            expectedAmount = expectedAmount.div(10).mul(9) // 10% is re deposited, 90% of rewards held to be sold
-            expectedTokeAmount = expectedTokeAmount - expectedAmount // 10% of rewards to be re deposited
 
             expect(tokeBalanceAfter.sub(tokeBalanceBefore).toString()).to.equal(
                 expectedAmount.toString()
@@ -227,17 +213,6 @@ describe.only("TokeVaultV1", async () => {
                 fee.toString()
             )
 
-            // validate that rewardsToSell is updated
-            let rewardsToSell = await tokeVault.rewardsToSell()
-            expect(rewardsToSell.toString()).to.equal(expectedAmount.toString())
-
-            // validate rewards are actually deposited into tokemak (and hence we have tToke)
-            let tokePool = await ethers.getContractAt(
-                "TestERC20",
-                mainnetTokePool
-            )
-            let bal = await tokePool.balanceOf(tokeVault.address)
-            expect(bal.toString()).to.equal(expectedTokeAmount.toString())
         })
     })
 
@@ -443,44 +418,6 @@ describe.only("TokeVaultV1", async () => {
                 .setFeeReciever(accounts[5].address)
             let feeReceiver = await tokeVault.feeReciever()
             expect(feeReceiver).to.eq(accounts[5].address)
-        })
-    })
-
-    describe("setRewardSellPercent", async () => {
-        it("reverts if the caller isn't the optimiser", async () => {
-            await expect(
-                tokeVault
-                    .connect(accounts[0])
-                    .setRewardSellPercent(ethers.utils.parseEther("0.5"))
-            ).to.be.revertedWith(
-                `AccessControl: account ${accounts[0].address.toLowerCase()} is missing role ${OPTIMISER_ROLE.toString().toLowerCase()}`
-            )
-        })
-
-        it("sets the sellPercent variable", async () => {
-            await tokeVault
-                .connect(accounts[2])
-                .setRewardSellPercent(ethers.utils.parseEther("0.5"))
-            let sellPercent = await tokeVault.sellPercent()
-            expect(sellPercent.toString()).to.equal(
-                ethers.utils.parseEther("0.5").toString()
-            )
-        })
-
-        it("reverts if the percent is > 100", async () => {
-            await expect(
-                tokeVault
-                    .connect(accounts[2])
-                    .setRewardSellPercent(ethers.utils.parseEther("1.2"))
-            ).to.be.revertedWith(`sell percent greater than 100%`)
-        })
-
-        it("reverts if the percent is < 0", async () => {
-            await expect(
-                tokeVault
-                    .connect(accounts[2])
-                    .setRewardSellPercent(ethers.utils.parseEther("-0.5"))
-            ).to.be.reverted
         })
     })
 })
