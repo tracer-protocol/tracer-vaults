@@ -1,7 +1,7 @@
 const { expect, assert } = require("chai")
 const { network, ethers } = require("hardhat")
 
-describe.only("VaultV1", async () => {
+describe("TokeVaultV1", async () => {
     let tokeVault, toke, tcr, tTCR, tokeRewards, impersonatedAccount
     const mainnetTOKE = "0x2e9d63788249371f1DFC918a52f8d799F4a38C94"
     const mainnetTCR = "0x9C4A4204B79dd291D6b6571C5BE8BbcD0622F050"
