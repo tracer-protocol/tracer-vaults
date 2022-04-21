@@ -162,13 +162,14 @@ contract LongFarmer {
     function acquire(uint256 _amount) public onlyPlayer {
         require(state == State.Active, "vault must be active to acquire");
         require(tradingStats.unWinding == false, "vault must be aquiring not unwinding");
+        require(skew() > threshold, "pools must be skewed to acquire");
         tradingStats.swapping = false;
-        tradeLive = true;
         bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongMint, agBal(_amount), true);
         poolCommitter.commit(args);
         emit acquired(_amount);
         tradingStats.amtLong = tradingStats.amtLong.add(_amount);
         tradingStats.want = tradingStats.want.sub(_amount);
+        tradingStats.want > 0 ? tradingStats.swapping = true : tradingStats.swapping = false;
     }
 
     /**
@@ -193,7 +194,9 @@ contract LongFarmer {
         require(state == State.Active, "vault must be active to dispose");
         bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongBurn, agBal(_amount), true);
         poolCommitter.commit(args);
-        tradeLive = false;
+        tradingStats.want = tradingStats.want.sub(_amount);
+        tradingStats.amtLong = tradingStats.amtLong.sub(_amount);
+        tradingStats.want > 1000 ? tradingStats.swapping = true : tradingStats.swapping = false;
     }
 
     /**
