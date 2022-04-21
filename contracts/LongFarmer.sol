@@ -5,14 +5,16 @@ import {L2Encoder} from "./utils/L2Encoder.sol";
 import {IPoolCommitter} from "./interfaces/tracer/IPoolCommitter.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import {SafeMath} from "../lib/openzeppelin-contracts/contracts/utils/math/SafeMath.sol";
+import "./SkewVault.sol";
 
 /**
  * @notice A vault for farming long sided skew against tracer perpetual pools
  * @dev if skew exists and the vault is active, tradingStats gets updated to reflect wants, enable swaps
  * @dev if skew ceases to exist, tradingStats gets updated to reflect unwinding and block swaps
  * @dev Aquiring and disposing must be called mannually for now, and will require role permissions before prod
+ * @dev EC4626 compatible vault must be deployed prior to initialize of this contract
  */
-contract LongSkewVault {
+contract LongFarmer {
     using SafeMath for uint256;
     enum State {
         // The vault is not active
@@ -35,9 +37,9 @@ contract LongSkewVault {
     TradingStats tradingStats; // only used in Active state
     ERC20 USDC;
     ERC20 longToken;
-    ERC20 THREELBTC;
     IPoolCommitter poolCommitter;
     ERC20 vault;
+    SkewVault skewVault;
     address poolAddress;
     bool public tradeLive;
     uint256 public threshold;
@@ -51,7 +53,7 @@ contract LongSkewVault {
     event Log(string _msg);
     event acquired(uint256 _amt);
 
-    constructor(
+    function initialize(
         address _poolAddress,
         uint256 _threshold,
         address _committer,
@@ -65,6 +67,20 @@ contract LongSkewVault {
         encoder = L2Encoder(_encoder);
         tradeLive = false;
         _vault = vault;
+        _vault = skewVault;
+    }
+
+    /**
+     * @notice Returns the value of the vault, in USDC and LongTokens
+     * @dev Utility function for skewVault
+     */
+    function value() public view returns (uint256) {
+        uint256 usdcBal = USDC.balanceOf(address(this));
+        uint256 longBal = longToken.balanceOf(address(this)).add(
+            poolCommitter.getAggregateBalance(address(this)).longTokens
+        );
+        uint256 actualised = longBal.mul(longTokenPrice());
+        return actualised.add(usdcBal);
     }
 
     /**
@@ -78,6 +94,7 @@ contract LongSkewVault {
         uint256 _nextPrice = tradingStats.previousPrice.mul(rate);
         uint256 _previousPrice = tradingStats.previousPrice;
         uint256 _skew = skew();
+        bool _bool = false;
         if (_skew > threshold && state != State.Active) {
             state = State.Active;
             tradingStats.startSkew = _skew;
@@ -85,7 +102,7 @@ contract LongSkewVault {
             uint256 _target = target(rate);
             tradingStats.targetAmt = _target;
             tradingStats.swapping = true;
-            return true;
+            _bool = true;
         }
         if (state == State.Active && _skew > threshold && tradingStats.amtLong > 0) {
             uint256 _amtLong = tradingStats.amtLong;
@@ -93,7 +110,7 @@ contract LongSkewVault {
             uint256 _want = _target.sub(_amtLong);
             tradingStats.want = _want;
             tradingStats.swapping = true;
-            return true;
+            _bool = true;
         }
         if (threshold < _skew) {
             uint256 balance = longToken.balanceOf(address(this)).add(
@@ -104,7 +121,7 @@ contract LongSkewVault {
             emit unwind(balance);
             tradingStats.unWinding = true;
             tradingStats.swapping = false;
-            return false;
+            _bool = false;
         }
         emit Log("pokey pokey");
         window = block.timestamp + 3600;
@@ -112,6 +129,7 @@ contract LongSkewVault {
             poolCommitter.getAggregateBalance(address(this)).longTokens
         );
         tradingStats.previousPrice = longTokenPrice();
+        return _bool;
     }
 
     /**
@@ -144,6 +162,7 @@ contract LongSkewVault {
     function acquire(uint256 _amount) public onlyPlayer {
         require(state == State.Active, "vault must be active to acquire");
         require(tradingStats.unWinding == false, "vault must be aquiring not unwinding");
+        require(skewVault.whiteList[msg.sender], "sender must be whitelisted to aquire");
         tradingStats.swapping = false;
         tradeLive = true;
         bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongMint, agBal(_amount), true);
@@ -153,9 +172,16 @@ contract LongSkewVault {
         tradingStats.want = tradingStats.want.sub(_amount);
     }
 
+    /**
+     * @notice Checks committer aggregate balance, returns bool
+     * @dev if long tokens in aggregate balance are greater than amt, returns true
+     * @param _amt amount of long tokens to be released
+     */
     function agBal(uint256 _amt) public view returns (bool) {
         uint256 lTokens = poolCommitter.getAggregateBalance(address(this)).longTokens;
-        lTokens > _amt ? true : false;
+        bool _bool = false;
+        lTokens > _amt ? _bool = true : _bool = false;
+        return _bool;
     }
 
     /**
@@ -165,7 +191,8 @@ contract LongSkewVault {
      * @dev must be set as role based access when in production
      */
     function dispose(uint256 _amount) public onlyPlayer {
-        require(state == State.Active, "vault must be active to acquire");
+        require(state == State.Active, "vault must be active to dispose");
+        require(skewVault.whiteList[msg.sender], "sender must be whitelisted to dispose");
         bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongBurn, agBal(_amount), true);
         poolCommitter.commit(args);
         tradeLive = false;
