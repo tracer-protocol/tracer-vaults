@@ -30,6 +30,7 @@ contract LongFarmer {
         uint256 targetAmt;
         bool swapping;
         bool unWinding;
+        bool stopping;
         uint256 amtLong;
         uint256 want;
     }
@@ -46,10 +47,7 @@ contract LongFarmer {
     uint256 window;
     ILeveragedPool public pool;
     L2Encoder encoder;
-    event holding(uint256 _amt);
     event unwind(uint256 _amt);
-    event releasing(uint256 _amt);
-    event noAction(uint256 _skew);
     event Log(string _msg);
     event acquired(uint256 _amt);
 
@@ -91,8 +89,6 @@ contract LongFarmer {
     function poke() public returns (bool) {
         require(window < block.timestamp, "poke can only be called hourly");
         uint256 rate = tradingStats.previousPrice.div(longTokenPrice());
-        uint256 _nextPrice = tradingStats.previousPrice.mul(rate);
-        uint256 _previousPrice = tradingStats.previousPrice;
         uint256 _skew = skew();
         bool _bool = false;
         if (_skew > threshold && state != State.Active) {
@@ -102,6 +98,8 @@ contract LongFarmer {
             uint256 _target = target(rate);
             tradingStats.targetAmt = _target;
             tradingStats.swapping = true;
+            tradingStats.unWinding = false;
+            tradingStats.stopping = false;
             _bool = true;
         }
         if (state == State.Active && _skew > threshold && tradingStats.amtLong > 0) {
@@ -110,9 +108,11 @@ contract LongFarmer {
             uint256 _want = _target.sub(_amtLong);
             tradingStats.want = _want;
             tradingStats.swapping = true;
+            tradingStats.unWinding = false;
+            tradingStats.stopping = false;
             _bool = true;
         }
-        if (threshold < _skew) {
+        if (threshold > _skew) {
             uint256 balance = longToken.balanceOf(address(this)).add(
                 poolCommitter.getAggregateBalance(address(this)).longTokens
             );
@@ -121,6 +121,12 @@ contract LongFarmer {
             emit unwind(balance);
             tradingStats.unWinding = true;
             tradingStats.swapping = false;
+            _bool = false;
+        }
+        if (nextSkew(rate) < threshold) {
+            tradingStats.swapping = false;
+            tradingStats.stopping = true;
+            emit Log("no more skew");
             _bool = false;
         }
         emit Log("pokey pokey");
@@ -142,14 +148,26 @@ contract LongFarmer {
     }
 
     /**
+     * @notice Returns the predicted next skew
+     * @param _rate the current rate of change
+     */
+    function nextSkew(uint256 _rate) public view returns (uint256) {
+        uint256 sBal = pool.shortBalance().mul(1 - _rate);
+        uint256 lBal = pool.longBalance().mul(_rate);
+        uint256 _s = sBal / lBal;
+        uint256 _nS = _s.mul(_rate);
+        return _nS;
+    }
+
+    /**
      * @notice Gets the target value of wants for the vault to bring skew back to 1
      * @param _rate rate of change of long token from previous price
      */
     function target(uint256 _rate) public view returns (uint256) {
         uint256 _shortBal = pool.shortBalance().mul(1 - _rate);
         uint256 _LongBal = pool.longBalance().mul(_rate);
-        uint256 _skew = _shortBal / _LongBal;
-        uint256 _t = _shortBal / _skew;
+        uint256 _s = _shortBal / _LongBal;
+        uint256 _t = _shortBal / _s;
         uint256 _target = _t - _LongBal;
         return _target;
     }
@@ -163,6 +181,7 @@ contract LongFarmer {
         require(state == State.Active, "vault must be active to acquire");
         require(tradingStats.unWinding == false, "vault must be aquiring not unwinding");
         require(skew() > threshold, "pools must be skewed to acquire");
+        require(tradingStats.stopping == false, "next skew under threshold");
         tradingStats.swapping = false;
         bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongMint, agBal(_amount), true);
         poolCommitter.commit(args);
