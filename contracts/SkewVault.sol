@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ERC20, ERC4626} from "../lib/solmate/src/mixins/ERC4626.sol";
 import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./LongFarmer.sol";
 
 /**
@@ -12,8 +11,9 @@ import "./LongFarmer.sol";
  * @dev inherets LongFarmer, which contains skew specific logic
  * @dev vault accepts usdc deposits and withdrawals from whitelisted users
  */
-contract SkewVault is ERC4626, Ownable, LongFarmer {
+contract SkewVault is ERC4626, Ownable {
     using SafeTransferLib for ERC20;
+    LongFarmer longFarmer;
 
     // the underlying token the vault accepts
     ERC20 public immutable underlying;
@@ -25,7 +25,7 @@ contract SkewVault is ERC4626, Ownable, LongFarmer {
     }
 
     function totalAssets() public view override returns (uint256) {
-        uint256 bal = value();
+        uint256 bal = longFarmer.value();
         return underlying.balanceOf(address(this)) + bal;
     }
 
@@ -33,12 +33,14 @@ contract SkewVault is ERC4626, Ownable, LongFarmer {
         whiteList[_addr] = status;
     }
 
-    function afterDeposit(uint256 assets, uint256) internal virtual override onlyWhitelist {
+    function afterDeposit(uint256 assets, uint256 shares) internal virtual override {
         require(whiteList[msg.sender] == true);
+        underlying.transfer(address(longFarmer), assets);
     }
 
-    function beforeWithdraw(uint256 assets, uint256) internal virtual override onlyWhitelist {
+    function beforeWithdraw(uint256 assets, uint256 shares) internal virtual override {
         require(whiteList[msg.sender] == true);
+        longFarmer.returnFunds(assets);
     }
 
     modifier onlyWhitelist() {

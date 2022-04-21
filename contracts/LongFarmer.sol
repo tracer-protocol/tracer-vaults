@@ -162,7 +162,6 @@ contract LongFarmer {
     function acquire(uint256 _amount) public onlyPlayer {
         require(state == State.Active, "vault must be active to acquire");
         require(tradingStats.unWinding == false, "vault must be aquiring not unwinding");
-        require(skewVault.whiteList[msg.sender], "sender must be whitelisted to aquire");
         tradingStats.swapping = false;
         tradeLive = true;
         bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongMint, agBal(_amount), true);
@@ -192,7 +191,6 @@ contract LongFarmer {
      */
     function dispose(uint256 _amount) public onlyPlayer {
         require(state == State.Active, "vault must be active to dispose");
-        require(skewVault.whiteList[msg.sender], "sender must be whitelisted to dispose");
         bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongBurn, agBal(_amount), true);
         poolCommitter.commit(args);
         tradeLive = false;
@@ -222,6 +220,11 @@ contract LongFarmer {
         uint256 bal = pool.longBalance();
         uint256 price = bal.div(longToken.totalSupply());
         return price;
+    }
+
+    function returnFunds(uint256 amount) public {
+        require(msg.sender == address(vault), "only vault");
+        USDC.transfer(address(vault), amount);
     }
 
     modifier onlyPlayer() {
