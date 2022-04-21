@@ -22,6 +22,7 @@ contract SkewVault is ERC4626, Ownable {
 
     constructor(ERC20 _underlying) ERC4626(_underlying, "TracerVault", "TVLT") {
         underlying = ERC20(_underlying);
+        longFarmer = new LongFarmer();
     }
 
     function totalAssets() public view override returns (uint256) {
@@ -31,6 +32,10 @@ contract SkewVault is ERC4626, Ownable {
 
     function setWhiteList(address _addr, bool status) external onlyOwner {
         whiteList[_addr] = status;
+    }
+
+    function setLongFarmer(address _longFarmer) public onlyOwner {
+        longFarmer = LongFarmer(_longFarmer);
     }
 
     function afterDeposit(uint256 assets, uint256 shares) internal virtual override {
