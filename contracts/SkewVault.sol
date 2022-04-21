@@ -23,7 +23,6 @@ contract SkewVault is ERC4626, Ownable {
     constructor(ERC20 _underlying) ERC4626(_underlying, "TracerVault", "TVLT") {
         underlying = ERC20(_underlying);
         longFarmer = new LongFarmer();
-        underlying.approve(address(longFarmer), 1e18);
     }
 
     function totalAssets() public view override returns (uint256) {
