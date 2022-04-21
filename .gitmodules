@@ -19,3 +19,6 @@
 [submodule "forge/lib/forge-std"]
 	path = forge/lib/forge-std
 	url = https://github.com/brockelmore/forge-std
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
+	url = https://github.com/openzeppelin/openzeppelin-contracts
