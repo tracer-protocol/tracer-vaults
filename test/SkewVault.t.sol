@@ -9,8 +9,11 @@ import "../contracts/SkewVault.sol";
 
 interface Vm {
     function warp(uint256 x) external;
+
     function expectRevert(bytes calldata) external;
+
     function roll(uint256) external;
+
     function prank(address) external;
 }
 
@@ -20,7 +23,7 @@ contract SkewVaulttest is DSTest, ERC20TokenFaker {
     SkewVault skewVault;
     Vm VM = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
 
-    function setUp(){
+    function setUp() {
         fUSD = new FakeERC20(0xd1f6A92a9a4FA84e7D4d2E1Ab010B4032B678EdE);
         longFarmer = new LongFarmer();
         skewVaults = new SkewVault(fUSD);
@@ -34,5 +37,4 @@ contract SkewVaulttest is DSTest, ERC20TokenFaker {
         skewVault.deposit(assets);
         assert(fUSD.balanceOf(address(skewVault)) == assets);
     }
-
 }
