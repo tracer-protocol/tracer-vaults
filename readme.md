@@ -2,7 +2,22 @@
 WIP Tracer vaults
 
 ## Getting Started
-Install dependencies using
+This repo currently uses a combination of Foundry and Hardhat. We will eventually migrate exclusively to Foundry, but for now this means a few steps are needed to get things set up.
+
+You will first need foundry installed to test certain contracts
+```
+curl -L https://foundry.paradigm.xyz | bash
+```
+then install foundry using 
+```
+foundryup
+```
+update lib's using
+```
+forge update
+```
+
+Next install other project dependencies using
 ```
 yarn install
 ```
@@ -16,6 +31,10 @@ yarn run lint:fix
 Run tests using
 ```
 yarn run test
+```
+OR run foundry tests using
+```
+yarn run test:foundry
 ```
 
 Test coverage using

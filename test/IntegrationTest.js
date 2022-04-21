@@ -1,7 +1,7 @@
 const { expect, assert } = require("chai")
 const { network, ethers } = require("hardhat")
 
-describe("VaultV1 + Strategy", async () => {
+describe.only("VaultV1 + Strategy", async () => {
     let vault
     let vaultFactory
     let owner
