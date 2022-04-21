@@ -6,6 +6,21 @@ import {IPoolCommitter} from "./interfaces/tracer/IPoolCommitter.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 
 contract LongSkewVault {
+    enum State {
+        // The vault is not active
+        Inactive,
+        // The vault is active
+        Active,
+        // The vault is paused
+        Paused
+    }
+    struct Active {
+        uint256 startTime;
+        uint256 startSkew;
+        uint256 targetAmt;
+        uint256 amtLong;
+    }
+
     ERC20 USDC;
     ERC20 THREELBTC;
     IPoolCommitter poolCommitter;
@@ -43,17 +58,17 @@ contract LongSkewVault {
         uint256 _bal = THREELBTC.balanceOf(address(this)); //todo  add aggregate balance
         if (_skew > threshold) {
             // TODO: and skew impact
-            uint256 target = target();
+            uint256 _target = target();
 
-            if (_bal < target) {
+            if (_bal < _target) {
                 uint256 aq = acquiring();
                 acquire(aq);
             }
-            if (_bal > target) {
+            if (_bal > _target) {
                 uint256 ds = disposing();
                 dispose(ds);
             }
-            if (_bal == target) {
+            if (_bal == _target) {
                 emit holding(_bal);
             }
             emit noAction(_skew);
@@ -71,11 +86,11 @@ contract LongSkewVault {
     }
 
     function target() public view returns (uint256) {
-        //todo and add aggregate Balance
+        //todo and add aggregate Balance + forecast 8 hour window
         uint256 _bal = THREELBTC.balanceOf(address(this));
         uint256 _skew = _bal / skew();
-        uint256 target = _skew - pool.longBalance();
-        return target;
+        uint256 _target = _skew - pool.longBalance();
+        return _target;
     }
 
     function acquiring() public view returns (uint256) {
