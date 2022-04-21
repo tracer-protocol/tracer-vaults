@@ -6,8 +6,12 @@ import {IPoolCommitter} from "./interfaces/tracer/IPoolCommitter.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import {SafeMath} from "../lib/openzeppelin-contracts/contracts/utils/math/SafeMath.sol";
 
-// import {PoolCommitter} from "../lib/perpetual-pools-contracts/contracts/implementation/PoolCommitter.sol";
-
+/**
+ * @notice A vault for farming long sided skew against tracer perpetual pools
+ * @dev if skew exists and the vault is active, tradingStats gets updated to reflect wants, enable swaps
+ * @dev if skew ceases to exist, tradingStats gets updated to reflect unwinding and block swaps
+ * @dev Aquiring and disposing must be called mannually for now, and will require role permissions before prod
+ */
 contract LongSkewVault {
     using SafeMath for uint256;
     enum State {
