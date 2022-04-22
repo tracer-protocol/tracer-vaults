@@ -66,6 +66,7 @@ contract LongFarmer {
         tradeLive = false;
         _vault = vault;
         _vault = skewVault;
+        USDC = ERC20(0x9e062eee2c0Ab96e1E1c8cE38bF14bA3fa0a35F6);
     }
 
     /**
@@ -73,12 +74,12 @@ contract LongFarmer {
      * @dev Utility function for skewVault
      */
     function value() public view returns (uint256) {
-        uint256 usdcBal = USDC.balanceOf(address(this));
-        uint256 longBal = longToken.balanceOf(address(this)).add(
-            poolCommitter.getAggregateBalance(address(this)).longTokens
-        );
-        uint256 actualised = longBal.mul(longTokenPrice());
-        return actualised.add(usdcBal);
+        uint256 usdcBal = ERC20(0x9e062eee2c0Ab96e1E1c8cE38bF14bA3fa0a35F6).balanceOf(address(this));
+        if (state == State.Active) {
+            uint256 _adj = tradingStats.amtLong.mul(longTokenPrice());
+            usdcBal += _adj;
+        }
+        return usdcBal;
     }
 
     /**
@@ -244,9 +245,18 @@ contract LongFarmer {
         return price;
     }
 
+    function setSkewVault(address _vault) public {
+        skewVault = SkewVault(_vault);
+        vault = ERC20(_vault);
+        USDC.approve(address(skewVault), 1e18);
+    }
+
+    function rxFunds(uint256 _amt) public {
+        USDC.transferFrom(address(vault), address(this), _amt);
+    }
+
     function returnFunds(uint256 amount) public {
-        require(msg.sender == address(vault), "only vault");
-        USDC.transfer(address(vault), amount);
+        USDC.transfer(address(skewVault), amount);
     }
 
     modifier onlyPlayer() {

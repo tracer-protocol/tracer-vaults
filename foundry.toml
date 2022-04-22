@@ -6,6 +6,8 @@ libs = ['lib']
 remappings =  [
     '@openzeppelin/=lib/openzeppelin-contracts/'
 ]
-
+[hardhat]
+src = "contracts"
+test = "test"
 
 # See more config options https://github.com/gakonst/foundry/tree/master/config
