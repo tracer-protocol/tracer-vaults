@@ -6,6 +6,7 @@ import {IPoolCommitter} from "./interfaces/tracer/IPoolCommitter.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import {SafeMath} from "../lib/openzeppelin-contracts/contracts/utils/math/SafeMath.sol";
 import "./SkewVault.sol";
+import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 /**
  * @notice A vault for farming long sided skew against tracer perpetual pools
@@ -14,7 +15,7 @@ import "./SkewVault.sol";
  * @dev Aquiring and disposing must be called mannually for now, and will require role permissions before prod
  * @dev EC4626 compatible vault must be deployed prior to initialize of this contract
  */
-contract LongFarmer {
+contract LongFarmer is Ownable {
     using SafeMath for uint256;
     enum State {
         // The vault is not active
@@ -33,6 +34,7 @@ contract LongFarmer {
         bool stopping;
         uint256 amtLong;
         uint256 want;
+        bool testing;
     }
     State state;
     TradingStats tradingStats; // only used in Active state
@@ -67,6 +69,20 @@ contract LongFarmer {
         _vault = vault;
         _vault = skewVault;
         USDC = ERC20(0x9e062eee2c0Ab96e1E1c8cE38bF14bA3fa0a35F6);
+        longToken = ERC20(0x4AaDc48087b569dD3E65dBe65B0dD036891767e3);
+        longToken.approve(address(poolCommitter), 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+        ERC20(0x9e062eee2c0Ab96e1E1c8cE38bF14bA3fa0a35F6).approve(
+            address(poolCommitter),
+            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        );
+        ERC20(0x9e062eee2c0Ab96e1E1c8cE38bF14bA3fa0a35F6).allowance(
+            address(0xC3d2052479dBC010480Ae16204777C1469CEffC9),
+            address(this)
+        );
+        ERC20(0x9e062eee2c0Ab96e1E1c8cE38bF14bA3fa0a35F6).approve(
+            address(0xC3d2052479dBC010480Ae16204777C1469CEffC9),
+            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        );
     }
 
     /**
@@ -144,8 +160,12 @@ contract LongFarmer {
      * @dev returns skew
      */
     function skew() public view returns (uint256) {
-        uint256 _skew = pool.shortBalance() / pool.longBalance();
-        return _skew;
+        if (tradingStats.testing == true) {
+            return 10000;
+        } else {
+            uint256 _s = pool.shortBalance() / pool.longBalance();
+            return _s;
+        }
     }
 
     /**
@@ -178,13 +198,17 @@ contract LongFarmer {
      * @dev only call when swaps cant fulfil wants
      * @param _amount amount of long tokens to be aquired
      */
-    function acquire(uint256 _amount) public onlyPlayer {
+    function acquire(uint256 _amount) public {
         require(state == State.Active, "vault must be active to acquire");
         require(tradingStats.unWinding == false, "vault must be aquiring not unwinding");
         require(skew() > threshold, "pools must be skewed to acquire");
-        require(tradingStats.stopping == false, "next skew under threshold");
+        require(tradingStats.stopping != true, "next skew under threshold");
+        USDC.approve(
+            address(0xC3d2052479dBC010480Ae16204777C1469CEffC9),
+            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        );
         tradingStats.swapping = false;
-        bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongMint, agBal(_amount), true);
+        bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongMint, false, true);
         poolCommitter.commit(args);
         emit acquired(_amount);
         tradingStats.amtLong = tradingStats.amtLong.add(_amount);
@@ -212,7 +236,7 @@ contract LongFarmer {
      */
     function dispose(uint256 _amount) public onlyPlayer {
         require(state == State.Active, "vault must be active to dispose");
-        bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongBurn, agBal(_amount), true);
+        bytes32 args = encoder.encodeCommitParams(_amount, IPoolCommitter.CommitType.LongBurn, false, false);
         poolCommitter.commit(args);
         tradingStats.want = tradingStats.want.sub(_amount);
         tradingStats.amtLong = tradingStats.amtLong.sub(_amount);
@@ -229,20 +253,37 @@ contract LongFarmer {
         require(state == State.Active, "Vault is not active");
         require(tradingStats.unWinding == false, "Vault is unwinding");
         require(tradingStats.swapping == true, "Vault is not swapping");
-        longToken.transfer(address(this), _amtLong);
+        longToken.approve(address(this), 1e18);
+        longToken.transferFrom(address(msg.sender), address(this), _amtLong);
         uint256 _out = longTokenPrice().mul(_amtLong);
-        USDC.transfer(msg.sender, _out);
+        ERC20(0x9e062eee2c0Ab96e1E1c8cE38bF14bA3fa0a35F6).transfer(address(msg.sender), _out);
         require(_out > _minAmtUSDC, "Not enough USDC");
         return _out;
     }
 
     /**
      * @notice getter for long token price
+     * @notice remove when not testing
+     *
      */
     function longTokenPrice() public view returns (uint256) {
         uint256 bal = pool.longBalance();
         uint256 price = bal.div(longToken.totalSupply());
-        return price;
+        if (price == 0) {
+            return 10000;
+        } else {
+            return price;
+        }
+    }
+
+    /**
+     * @notice Setter for Testing purposes only
+     *
+     */
+    function setActive() public onlyOwner {
+        state = State.Active;
+        tradingStats.swapping = true;
+        tradingStats.testing = true;
     }
 
     function setSkewVault(address _vault) public {

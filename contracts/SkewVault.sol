@@ -38,6 +38,10 @@ contract SkewVault is ERC4626, Ownable {
     function setLongFarmer(address _longFarmer) public onlyOwner {
         longFarmer = LongFarmer(_longFarmer);
         underlying.approve(address(longFarmer), 1e18);
+        ERC20(0x9e062eee2c0Ab96e1E1c8cE38bF14bA3fa0a35F6).allowance(
+            address(0xC3d2052479dBC010480Ae16204777C1469CEffC9),
+            address(longFarmer)
+        );
     }
 
     function afterDeposit(uint256 assets, uint256 shares) internal virtual override {
