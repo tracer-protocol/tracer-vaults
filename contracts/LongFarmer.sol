@@ -49,6 +49,7 @@ contract LongFarmer is Ownable {
     uint256 public threshold;
     uint256 window;
     uint256 public depUSDC; //deposited USDC
+    uint256 public balances; //net user balances
     ILeveragedPool public pool;
     L2Encoder encoder;
     event unwind(uint256 _amt);
@@ -297,10 +298,12 @@ contract LongFarmer is Ownable {
     function rxFunds(uint256 _amt) public {
         USDC.transferFrom(address(skewVault), address(this), _amt);
         depUSDC += _amt;
+        balances += _amt;
     }
 
     function returnFunds(uint256 amount) public {
         USDC.transfer(address(skewVault), amount);
+        balances -= amount;
     }
 
     modifier onlyPlayer() {

@@ -48,7 +48,6 @@ contract SkewVault is ERC4626, Ownable {
 
     function afterDeposit(uint256 assets, uint256 shares) internal virtual override {
         require(whiteList[msg.sender] == true);
-        // underlying.safeTransfer(address(longFarmer), assets);
         longFarmer.rxFunds(assets);
     }
 
