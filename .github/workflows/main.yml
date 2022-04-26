@@ -19,7 +19,7 @@ jobs:
               run: yarn install
 
             - name: Install submodules
-              run: git submodule update --init --recursive
+              run: forge install
 
             - name: Compile contracts
               run: yarn build
@@ -46,7 +46,7 @@ jobs:
               run: yarn install
               
             - name: Install submodules
-              run: git submodule update --init --recursive
+              run: forge install
 
             - name: Compile contracts
               run: yarn build
