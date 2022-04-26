@@ -31,3 +31,6 @@
 [submodule "lib/foundry-playground"]
 	path = lib/foundry-playground
 	url = https://github.com/dekz/foundry-playground
+[submodule "lib/foundry-playground/lib/ds-test"]
+	path = lib/foundry-playground/lib/ds-test
+	url = https://github.com/dekz/foundry-playground/tree/master/lib/ds-test

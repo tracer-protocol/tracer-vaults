@@ -1,5 +1,5 @@
 ### Vault
-This outlines the specification for the ERC4626 compliant vault. Further information regarding ERC4626 vaults can be found in (EIP-4626)[https://eips.ethereum.org/EIPS/eip-4626].
+This outlines the specification for the ERC4626 compliant vault. Further information regarding ERC4626 vaults can be found in [EIP-4626](https://eips.ethereum.org/EIPS/eip-4626).
 
 ## Spec
 `underlying` The underlying ERC20 principle asset
