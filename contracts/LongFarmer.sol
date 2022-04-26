@@ -199,7 +199,7 @@ contract LongFarmer is Ownable {
      * @dev only call when swaps cant fulfil wants
      * @param _amount amount of long tokens to be aquired
      */
-    function acquire(uint256 _amount) public onlyWhitelist{
+    function acquire(uint256 _amount) public onlyWhitelist {
         require(state == State.Active, "vault must be active to acquire");
         require(tradingStats.unWinding == false, "vault must be aquiring not unwinding");
         require(skew() > threshold, "pools must be skewed to acquire");
@@ -311,7 +311,7 @@ contract LongFarmer is Ownable {
         _;
     }
     modifier onlyWhitelist() {
-        require(skewVault.whiteList(msg.sender)  == true, "Only whitelisted accounts can execute");
+        require(skewVault.whiteList(msg.sender) == true, "Only whitelisted accounts can execute");
         _;
     }
 }
