@@ -25,6 +25,3 @@
 [submodule "lib/perpetual-pools-contracts"]
 	path = lib/perpetual-pools-contracts
 	url = https://github.com/tracer-protocol/perpetual-pools-contracts
-[submodule "lib/foundry-playground"]
-	path = lib/foundry-playground
-	url = https://github.com/dekz/foundry-playground
