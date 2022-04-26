@@ -20,16 +20,10 @@ contract SkewVault is ERC4626, Ownable {
 
     mapping(address => bool) public whiteList;
 
-    constructor(
-        address _underlying,
-        address pooladdr,
-        uint256 _threshold,
-        address _committer,
-        address _encoder
-    ) ERC4626(ERC20(_underlying), "TracerVault", "TVLT") {
+    constructor(address _underlying) ERC4626(ERC20(_underlying), "TracerVault", "TVLT") {
         underlying = ERC20(_underlying);
-        longFarmer = new LongFarmer();
-        longFarmer.initialize(pooladdr, _threshold, _committer, _encoder, ERC20(this));
+        // longFarmer = new LongFarmer();
+        // longFarmer.initialize(pooladdr, _threshold, _committer, _encoder, ERC20(this));
     }
 
     function totalAssets() public view override returns (uint256) {
@@ -54,10 +48,8 @@ contract SkewVault is ERC4626, Ownable {
 
     function afterDeposit(uint256 assets, uint256 shares) internal virtual override {
         require(whiteList[msg.sender] == true);
-
-        // longFarmer.rxFunds(assets);
-        // // underlying.safeTransferFrom(address(this), address(longFarmer), assets);
-        underlying.safeTransfer(address(longFarmer), assets);
+        // underlying.safeTransfer(address(longFarmer), assets);
+        longFarmer.rxFunds(assets);
     }
 
     function beforeWithdraw(uint256 assets, uint256 shares) internal virtual override {

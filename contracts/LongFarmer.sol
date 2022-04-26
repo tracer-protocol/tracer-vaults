@@ -48,6 +48,7 @@ contract LongFarmer is Ownable {
     bool public tradeLive;
     uint256 public threshold;
     uint256 window;
+    uint256 public depUSDC; //deposited USDC
     ILeveragedPool public pool;
     L2Encoder encoder;
     event unwind(uint256 _amt);
@@ -84,6 +85,7 @@ contract LongFarmer is Ownable {
             address(0xC3d2052479dBC010480Ae16204777C1469CEffC9),
             0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
         );
+        longToken.approve(address(this), 1e18);
     }
 
     /**
@@ -199,13 +201,13 @@ contract LongFarmer is Ownable {
      * @dev only call when swaps cant fulfil wants
      * @param _amount amount of long tokens to be aquired
      */
-    function acquire(uint256 _amount) public onlyWhitelist {
+    function acquire(uint256 _amount) public {
         require(state == State.Active, "vault must be active to acquire");
         require(tradingStats.unWinding == false, "vault must be aquiring not unwinding");
         require(skew() > threshold, "pools must be skewed to acquire");
         require(tradingStats.stopping != true, "next skew under threshold");
         USDC.approve(
-            address(0xC3d2052479dBC010480Ae16204777C1469CEffC9),
+            address(0xccC0350C209F6F01D071c3cdc20eEb5EE4A73d80),
             0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
         );
         tradingStats.swapping = false;
@@ -254,7 +256,6 @@ contract LongFarmer is Ownable {
         require(state == State.Active, "Vault is not active");
         require(tradingStats.unWinding == false, "Vault is unwinding");
         require(tradingStats.swapping == true, "Vault is not swapping");
-        longToken.approve(address(this), 1e18);
         longToken.transferFrom(address(msg.sender), address(this), _amtLong);
         uint256 _out = longTokenPrice().mul(_amtLong);
         ERC20(0x9e062eee2c0Ab96e1E1c8cE38bF14bA3fa0a35F6).transfer(address(msg.sender), _out);
@@ -294,7 +295,8 @@ contract LongFarmer is Ownable {
     }
 
     function rxFunds(uint256 _amt) public {
-        USDC.transferFrom(address(vault), address(this), _amt);
+        USDC.transferFrom(address(skewVault), address(this), _amt);
+        depUSDC += _amt;
     }
 
     function returnFunds(uint256 amount) public {
