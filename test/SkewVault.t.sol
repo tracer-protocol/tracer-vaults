@@ -19,7 +19,7 @@ interface Cheats {
     function prank(address) external;
 }
 
-contract SkewVaulttest is DSTest, ERC20TokenFaker {
+contract SkewVaulttest is DSTest {
     using SafeMath for uint256;
     LongFarmer longFarmer;
     SkewVault skewVault;
