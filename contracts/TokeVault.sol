@@ -7,12 +7,13 @@ import "./interfaces/tokemak/ILiquidityPool.sol";
 import "./interfaces/tokemak/IRewards.sol";
 import "./interfaces/uniswap/UniswapV2Router02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * A Tokemak compatible ERC4626 vault that takes in a tAsset and auto compounds toke rewards
  * received from staking that tAsset in toke.
  */
-contract TokeVault is ERC4626, Ownable {
+contract TokeVault is ERC4626, AccessControl {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
 
@@ -21,7 +22,7 @@ contract TokeVault is ERC4626, Ownable {
     ERC20 public immutable tAsset;
 
     // tokemak contracts
-    ILiquidityPool public immutable tokemakPool;
+    ILiquidityPool public immutable underlyingPool;
     IRewards public immutable rewards;
 
     // CONFIGURABLE PARAMS
@@ -30,14 +31,20 @@ contract TokeVault is ERC4626, Ownable {
     // max swap amount for uniswap trade. This amount can be swapped every swapCooldown hours
     uint256 public maxSwapTokens = 100000000000000000000;
     uint256 public swapCooldown = 12 hours;
-    // address that gets 9% of generated yield
+    // address that gets a percent of generated yield
     address public feeReciever;
+    // performance fee that goes to fee reciever. Default = 10% = 0.1
+    uint256 public performanceFee = 100000000000000000;
 
     // uniswap
     address public immutable swapRouter;
     address[] public tradePath;
     uint24 public swapPoolFee = 3000; // default 0.3%
     uint256 public lastSwapTime = 0;
+
+    // RBAC
+    bytes32 public constant SAFETY_ROLE = keccak256("SAFETY_ADMIN");
+    bytes32 public constant CONFIG_ROLE = keccak256("CONFIG_ADMIN");
 
     /**
      * @param _tAsset the tAsset that this vault handles
@@ -49,18 +56,22 @@ contract TokeVault is ERC4626, Ownable {
         address _feeReciever,
         address _toke,
         address[] memory _tradePath,
+        address _superAdmin,
         string memory name,
         string memory symbol
     ) ERC4626(ERC20(_tAsset), name, symbol) {
         // erc20 representation of toke pool
         tAsset = ERC20(_tAsset);
         // pool representation of toke pool
-        tokemakPool = ILiquidityPool(_tAsset);
+        underlyingPool = ILiquidityPool(_tAsset);
         rewards = IRewards(_rewards);
         swapRouter = _swapRouter;
         feeReciever = _feeReciever;
         toke = ERC20(_toke);
         tradePath = _tradePath;
+
+        // setup default admin
+        _setupRole(DEFAULT_ADMIN_ROLE, _superAdmin);
     }
 
     function beforeWithdraw(uint256 underlyingAmount, uint256) internal override {
@@ -89,9 +100,18 @@ contract TokeVault is ERC4626, Ownable {
         bytes32 s
     ) public {
         // claim toke rewards
+        uint256 rewardsBefore = toke.balanceOf(address(this));
         rewards.claim(recipient, v, r, s);
+        // take the keeper reward out of these rewards before pre computing
+        // todo may underflow if claim amount < keeperRewardAmount
+        uint256 rewardsReceived = toke.balanceOf(address(this)) - rewardsBefore - keeperRewardAmount;
 
-        // reward the claimer for executing this claim - rewarded in reward tokens
+        // take performance fee
+        uint256 fee = rewardsReceived.mulWadUp(performanceFee);
+        rewardsReceived = rewardsReceived - fee;
+
+        // transfers and deposits
+        toke.safeTransfer(feeReciever, fee);
         toke.safeTransfer(msg.sender, keeperRewardAmount);
     }
 
@@ -104,39 +124,35 @@ contract TokeVault is ERC4626, Ownable {
         require(canCompound(), "not ready to compound");
 
         // find the asset the tokemak pool is settled in
-        ERC20 underlying = ERC20(tokemakPool.underlyer());
+        ERC20 underlying = ERC20(underlyingPool.underlyer());
 
+        uint256 rewardsBalance = toke.balanceOf(address(this));
+
+        // compute amount of rewards to sell, and amount to keep
         // cap at max toke swap amount
-        uint256 tokeBal = toke.balanceOf(address(this));
-        uint256 swapAmount = tokeBal >= maxSwapTokens ? maxSwapTokens : tokeBal;
-
-        // sell toke rewards earned for underlying asset
-        // dealing with slippage
-        // option 2: have a max sale amount with a cooldown period?
-        // note: slippage here will only ever be upward pressure on the tAsset but you still want to optimise this
-        toke.safeApprove(swapRouter, swapAmount);
+        uint256 swapAmount = rewardsBalance >= maxSwapTokens ? maxSwapTokens : rewardsBalance;
 
         // approve the router
         UniswapV2Router02 router = UniswapV2Router02(swapRouter);
+        toke.safeApprove(swapRouter, swapAmount);
 
         // swap from toke to underlying asset to deposit back into toke
-        router.swapExactTokensForTokens(swapAmount, 1, tradePath, address(this), block.timestamp + 30 minutes);
-
-        // deposit all of underlying back into toke and take service fee
         uint256 underlyingBal = underlying.balanceOf(address(this));
-        // deposit 90% back into toke, take 1% keeper fee, take 9% service fee.
-        // todo: This could be configurable in the future
-        uint256 depositAmount = underlyingBal - (underlyingBal / 10); // 90%
-        uint256 keeperFee = underlyingBal / 100;
-        uint256 serviceFee = underlyingBal - depositAmount - keeperFee;
+        router.swapExactTokensForTokens(swapAmount, 1, tradePath, address(this), block.timestamp + 30 minutes);
+        uint256 underlyingReceived = underlying.balanceOf(address(this)) - underlyingBal;
 
         // mark this as swap time
         lastSwapTime = block.timestamp;
 
-        // transfer all the tokes
-        underlying.safeApprove(address(tokemakPool), depositAmount);
-        tokemakPool.deposit(depositAmount);
-        underlying.safeTransfer(feeReciever, serviceFee);
+        // compute keeper fee and deposit amount
+        uint256 keeperFee = underlyingReceived / 100;
+        uint256 depositAmount = underlyingReceived - keeperFee;
+
+        // deposit underlying back into tokemak
+        underlying.safeApprove(address(underlyingPool), depositAmount);
+        underlyingPool.deposit(depositAmount);
+
+        // transfer keeper fee
         underlying.safeTransfer(msg.sender, keeperFee);
     }
 
@@ -147,8 +163,8 @@ contract TokeVault is ERC4626, Ownable {
     function canCompound() public view returns (bool) {
         // has enough time passed?
         bool hasTimePassed = block.timestamp > lastSwapTime + swapCooldown;
-        bool hasBalance = toke.balanceOf(address(this)) != 0;
-        return hasTimePassed && hasBalance;
+        bool hasSellableBalance = toke.balanceOf(address(this)) != 0;
+        return hasTimePassed && hasSellableBalance;
     }
 
     /**
@@ -156,32 +172,35 @@ contract TokeVault is ERC4626, Ownable {
      * @dev remove once contract is audited and verified. This allows the owner to
      * withdraw any asset to themself. USE WITH CAUTION
      */
-    function withdrawAssets(address asset, uint256 amount) external onlyOwner {
-        ERC20(asset).safeTransfer(owner(), amount);
+    function withdrawAssets(address asset, uint256 amount) external onlyRole(SAFETY_ROLE) {
+        ERC20(asset).safeTransfer(msg.sender, amount);
     }
 
     /**
      * @notice allows the keeper reward to be modified
      */
-    function setKeeperReward(uint256 newKeeperReward) external onlyOwner {
+    function setKeeperReward(uint256 newKeeperReward) external onlyRole(CONFIG_ROLE) {
         keeperRewardAmount = newKeeperReward;
     }
 
     /**
      * @notice allows the max swap tokens to be modified
      */
-    function setMaxSwapTokens(uint256 newMaxSwapTokens) external onlyOwner {
+    function setMaxSwapTokens(uint256 newMaxSwapTokens) external onlyRole(CONFIG_ROLE) {
         maxSwapTokens = newMaxSwapTokens;
     }
 
     /**
      * @notice allows the max swap tokens to be modified
      */
-    function setSwapCooldown(uint256 newSwapCooldown) external onlyOwner {
+    function setSwapCooldown(uint256 newSwapCooldown) external onlyRole(CONFIG_ROLE) {
         swapCooldown = newSwapCooldown * 1 hours;
     }
 
-    function setFeeReciever(address newFeeReciever) external onlyOwner {
+    /**
+     * @notice Sets the account that receives profit fees
+     */
+    function setFeeReciever(address newFeeReciever) external onlyRole(CONFIG_ROLE) {
         feeReciever = newFeeReciever;
     }
 }
