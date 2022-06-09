@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./interfaces/balancer/IVault.sol";
 import "./interfaces/balancer/IRateProvider.sol";
 import "./interfaces/balancer/IMetastablePool.sol";
+import "./interfaces/balancer/ILiquidityGaugeFactory.sol";
+import "./interfaces/balancer/ILiquidityGauge.sol";
 import "hardhat/console.sol";
 
 /**
@@ -35,7 +37,10 @@ contract BalancerVault is ERC4626, AccessControl {
     // balancer identifies pools by a pool ID
     // eg https://app.balancer.fi/#/pool/0x7b50775383d3d6f0215a8f290f2c9e2eebbeceb20000000000000000000000fe
     bytes32 public poolId;
+    address public boostedPool;
     IVault public balancerVault = IVault(address(0xBA12222222228d8Ba445958a75a0704d566BF2C8));
+    address public gaugeFactory;
+    ERC20 public bal;
 
     // CONFIGURABLE PARAMS
     // keeper rewards: default of 1.5 Toke
@@ -50,6 +55,7 @@ contract BalancerVault is ERC4626, AccessControl {
 
     // Balancer swap contracts (for swapping rewards into stables)
     // todo: what contract do I need here?
+    uint256 lastSwapTime;
 
     // RBAC
     bytes32 public constant SAFETY_ROLE = keccak256("SAFETY_ADMIN");
@@ -60,6 +66,8 @@ contract BalancerVault is ERC4626, AccessControl {
     constructor(
         address _balancerLP,
         bytes32 _targetPoolId,
+        address _gaugeFactory,
+        address _balToken,
         address _superAdmin,
         string memory name,
         string memory symbol
@@ -70,6 +78,9 @@ contract BalancerVault is ERC4626, AccessControl {
         // setup the balancer LP token to be accepted
         // balancerLP = ERC20(_balancerLP);
         poolId = _targetPoolId;
+        (boostedPool, ) = balancerVault.getPool(poolId);
+        gaugeFactory = _gaugeFactory;
+        bal = ERC20(_balToken);
     }
 
     function beforeWithdraw(uint256 underlyingAmount, uint256) internal override {
@@ -85,36 +96,48 @@ contract BalancerVault is ERC4626, AccessControl {
     function totalAssets() public view override returns (uint256) {
         console.log("Total assets");
         // Read the balance of the vault by converting LP shares into total stables.
-        (address[] memory tokens, uint256[] memory balances, ) = balancerVault.getPoolTokens(poolId);
-        (address boostedPool, ) = balancerVault.getPool(poolId);
-        // todo optimise below
-        uint256 assets = 0;
-        for (uint8 i = 0; i < tokens.length; i++) {
-            address linearPool = tokens[i];
-            // the following uses the rate provider for each linear pool within the boosted pool
-            // the rate returned is the conversion between linear pool LP tokens and the underlying (eg DAI).
-            // (https://dev.balancer.fi/resources/pool-interfacing/metastable-pool)
+        //(address[] memory tokens, uint256[] memory balances, ) = balancerVault.getPoolTokens(poolId);
 
-            // ignore if this is the bb-a-usd pool.
-            if (linearPool != boostedPool) {
-                IRateProvider rateProvider = IRateProvider(linearPool);
-                uint256 rate = rateProvider.getRate();
-                console.log(linearPool);
-                console.log(rate);
-                console.log(balances[i]);
-                assets += balances[i].mulWadDown(rate);
-            }
-        }
+        // get gauge address
+        ILiquidityGauge poolGauge = ILiquidityGauge(ILiquidityGaugeFactory(gaugeFactory).getPoolGauge(boostedPool));
+        uint256 rawAssets = ERC20(boostedPool).balanceOf(address(this));
+        uint256 stakedAssets = poolGauge.balanceOf(address(this));
+
+        // total assets = bb-a-usd lp tokens + staked bb-a-usd lp tokens
+        uint256 assets = rawAssets + stakedAssets;
+        
+        // todo optimise below
+        // uint256 assets = 0;
+        // for (uint8 i = 0; i < tokens.length; i++) {
+        //     address linearPool = tokens[i];
+        //     // the following uses the rate provider for each linear pool within the boosted pool
+        //     // the rate returned is the conversion between linear pool LP tokens and the underlying (eg DAI).
+        //     // (https://dev.balancer.fi/resources/pool-interfacing/metastable-pool)
+
+        //     // ignore if this is the bb-a-usd pool.
+        //     if (linearPool != boostedPool) {
+        //         IRateProvider rateProvider = IRateProvider(linearPool);
+        //         uint256 rate = rateProvider.getRate();
+        //         console.log(linearPool);
+        //         console.log(rate);
+        //         console.log(balances[i]);
+        //         assets += balances[i].mulWadDown(rate);
+        //     }
+        // }
         console.log(assets);
         return assets;
     }
 
     /**
      * @notice Claims rewards from Balancer
-     * @dev the payload for claiming (recipient, v, r, s) must be formed off chain
+     * @dev see https://dev.balancer.fi/resources/vebal-and-gauges/gauges#how-to-claim-pending-tokens-for-a-given-pool
      */
     function claim() public {
-        // todo
+        // todo: alter for arbitrum support. For now testing on mainnet
+        // get gauge address
+        ILiquidityGauge poolGauge = ILiquidityGauge(ILiquidityGaugeFactory(gaugeFactory).getPoolGauge(boostedPool));
+        // claim and receive BAL as rewards
+        poolGauge.claim_rewards(address(this), address(this));
     }
 
     /**
@@ -123,9 +146,12 @@ contract BalancerVault is ERC4626, AccessControl {
      */
     function compound() public {
         // todo:
-        // - figure out optimal stable to collect for this compound (based on pool composition - eg swap BAL for one of the stables)
+        // - figure out optimal stable to collect for this compound (based on pool composition - eg swap BAL for one of the stables) -> this should be done offchain
         // - perform swap
         // - distribute fee's and restake into Bal pool.
+        require(canCompound(), "not ready to compound");
+
+
         // validate we can compound
         //     require(canCompound(), "not ready to compound");
         //     // find the asset the tokemak pool is settled in
@@ -158,11 +184,10 @@ contract BalancerVault is ERC4626, AccessControl {
      * @return can compound be called
      */
     function canCompound() public view returns (bool) {
-        // has enough time passed?
-        // bool hasTimePassed = block.timestamp > lastSwapTime + swapCooldown;
-        // bool hasSellableBalance = toke.balanceOf(address(this)) != 0;
-        // return hasTimePassed && hasSellableBalance;
-        return true;
+        // todo: get bal balance
+        bool hasSellableBalance = bal.balanceOf(address(this)) != 0;
+        bool hasTimePassed = block.timestamp > lastSwapTime + swapCooldown;
+        return hasTimePassed;
     }
 
     /**
