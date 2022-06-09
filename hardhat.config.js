@@ -14,7 +14,16 @@ require("dotenv").config()
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-    solidity: "0.8.0",
+    solidity: {
+        compilers: [
+            {
+                version: "0.7.0"
+            },
+            {
+                version: "0.8.0"
+            },
+        ]
+    },
     namedAccounts: {
         deployer: 0,
     },
@@ -22,7 +31,7 @@ module.exports = {
         hardhat: {
             forking: {
                 url: process.env.RPC_URL,
-                blockNumber: 14448270,
+                blockNumber: 14930196,
             },
         },
         deploy: {
