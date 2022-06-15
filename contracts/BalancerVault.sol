@@ -10,6 +10,7 @@ import "./interfaces/balancer/pool-utils/IRateProvider.sol";
 import "./interfaces/balancer/liquidity-mining/ILiquidityGaugeFactory.sol";
 import "./interfaces/balancer/liquidity-mining/IGaugeAdder.sol";
 import "./interfaces/balancer/liquidity-mining/IStakingLiquidityGauge.sol";
+import "./interfaces/balancer/vault/IPoolSwapStructs.sol";
 import "hardhat/console.sol";
 
 /**
@@ -29,7 +30,7 @@ contract BalancerVault is ERC4626, AccessControl {
 
     // required assets
     // mapping asset => is accepted by balancer pool?
-    mapping(address => bool) public supportedAssets;
+    address[] supportedAssets;
 
     // Balancer contracts
     // todo: Get correct interface
@@ -39,8 +40,11 @@ contract BalancerVault is ERC4626, AccessControl {
     bytes32 public poolId;
     IERC20 public boostedPool;
     IVault public balancerVault = IVault(address(0xBA12222222228d8Ba445958a75a0704d566BF2C8));
-    address public gaugeFactory;
+    address public poolGauge;
     ERC20 public bal;
+    // cache stable pool join kind to reduce contract size
+    enum JoinKind { INIT, EXACT_TOKENS_IN_FOR_BPT_OUT, TOKEN_IN_FOR_EXACT_BPT_OUT }
+
 
     // CONFIGURABLE PARAMS
     // keeper rewards: default of 1.5 Toke
@@ -69,6 +73,7 @@ contract BalancerVault is ERC4626, AccessControl {
         address _gaugeFactory,
         address _balToken,
         address _superAdmin,
+        address[] memory _supportedAssets,
         string memory name,
         string memory symbol
     ) ERC4626(ERC20(_balancerLP), name, symbol) {
@@ -80,28 +85,25 @@ contract BalancerVault is ERC4626, AccessControl {
         poolId = _targetPoolId;
         (address _boostedPool, ) = balancerVault.getPool(poolId);
         boostedPool = IERC20(_boostedPool);
-        gaugeFactory = _gaugeFactory;
         bal = ERC20(_balToken);
+        supportedAssets = _supportedAssets;
 
         // approve the pool gauge to spend the balancer LP token
-        ILiquidityGauge poolGauge = ILiquidityGauge(IGaugeAdder(gaugeFactory).getPoolGauge(boostedPool));
+        poolGauge = address(IGaugeAdder(_gaugeFactory).getPoolGauge(boostedPool));
         // max approval
         ERC20(_balancerLP).approve(address(poolGauge), 2**256 - 1);
     }
 
     function beforeWithdraw(uint256 underlyingAmount, uint256) internal override {
-        // withdraw from the gauge
-        ILiquidityGauge poolGauge = ILiquidityGauge(IGaugeAdder(gaugeFactory).getPoolGauge(boostedPool));
         // todo: only claim rewards if there are rewards to claim
-        IStakingLiquidityGauge(address(poolGauge)).withdraw(underlyingAmount);
+        IStakingLiquidityGauge(poolGauge).withdraw(underlyingAmount);
     }
 
     function afterDeposit(uint256 underlyingAmount, uint256) internal override {
         // stake into the gauge
-        ILiquidityGauge poolGauge = ILiquidityGauge(IGaugeAdder(gaugeFactory).getPoolGauge(boostedPool));
         // todo: only claim rewards if there are rewards to claim
         // todo: rather than deposit into bal gauges -> could earn more by depositing into a system such as StakeDAO or Aura
-         IStakingLiquidityGauge(address(poolGauge)).deposit(underlyingAmount, address(this));
+        IStakingLiquidityGauge(poolGauge).deposit(underlyingAmount, address(this));
     }
 
     /// @notice Total amount of the underlying asset that
@@ -112,9 +114,8 @@ contract BalancerVault is ERC4626, AccessControl {
         //(address[] memory tokens, uint256[] memory balances, ) = balancerVault.getPoolTokens(poolId);
 
         // get gauge address
-        ILiquidityGauge poolGauge = ILiquidityGauge(IGaugeAdder(gaugeFactory).getPoolGauge(boostedPool));
         uint256 rawAssets = boostedPool.balanceOf(address(this));
-        uint256 stakedAssets = IERC20(address(poolGauge)).balanceOf(address(this));
+        uint256 stakedAssets = IERC20(poolGauge).balanceOf(address(this));
 
         // total assets = bb-a-usd lp tokens + staked bb-a-usd lp tokens
         uint256 assets = rawAssets + stakedAssets;
@@ -148,28 +149,68 @@ contract BalancerVault is ERC4626, AccessControl {
     function claim() public {
         // todo: alter for arbitrum support. For now testing on mainnet
         // get gauge address
-        IRewardTokenDistributor poolGauge = IRewardTokenDistributor(address(IGaugeAdder(gaugeFactory).getPoolGauge(boostedPool)));
         // claim and receive BAL as rewards
-        poolGauge.claim_rewards(address(this));
+        IStakingLiquidityGauge(poolGauge).claim_rewards(address(this));
     }
 
     /**
      * @notice harvests on hand rewards for the underlying assets and reinvests
-     * @dev limits the amount of slippage that it is willing to accept. Permissioned as the token to purchase is computed
-     * offchain. Purchases are executed in order.
-     * @param assetsToAcquire ordered list of asset addresses to acquire using rewards
-     * @param amounts ordered list of amounts of each asset to acquire using rewards
+     * @dev limits the amount of slippage that it is willing to accept. Permissioned as the tokens to purchase and deposit are computed off chain.
      */
     function compound(
-        address[] memory assetsToAcquire,
-        uint256[] memory amounts
+        IVault.SwapKind kind,
+        IVault.BatchSwapStep[] memory swaps,
+        IAsset[] memory assets,
+        IVault.FundManagement memory funds,
+        int256[] memory limits,
+        uint256 deadline
     ) public {
-        // todo:
-        // - figure out optimal stable to collect for this compound (based on pool composition - eg swap BAL for one of the stables) -> this should be done offchain
-        // - perform swap
-
-        // - distribute fee's and restake into Bal pool.
+        // Note: The optimal swap conditions are computed off chain by a keeper.
         require(canCompound(), "not ready to compound");
+        // on chain validation: assets, receiver
+
+        // perform swap
+        balancerVault.batchSwap(
+            kind,
+            swaps,
+            assets,
+            funds,
+            limits,
+            deadline
+        );
+
+        // deposit back into balancer
+        // 1. Deposit into boosted pool max amount of each asset to get LP tokens
+        uint256[] memory amounts;
+        IAsset[] memory depositAssets;
+        for (uint8 i = 0; i < supportedAssets.length; i++) {
+            address _asset = supportedAssets[i];
+            uint256 _amount = IERC20(_asset).balanceOf(address(this));
+            amounts[i] = _amount;
+            depositAssets[i] = IAsset(_asset);
+        }
+
+        // todo is MIN_BPT as 0 below safe?
+        bytes memory encodedJoinType = abi.encode(JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT, amounts, 0);
+
+        IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest(
+            depositAssets,
+            amounts,
+            encodedJoinType,
+            false
+        );
+
+        balancerVault.joinPool(
+            poolId,
+            address(this),
+            address(this),
+            request
+        );
+
+        // 2. Deposit LP tokens into gauge
+        uint256 blpBalance = boostedPool.balanceOf(address(this));
+        IStakingLiquidityGauge(address(poolGauge)).deposit(blpBalance, address(this));
+
 
 
         // validate we can compound
